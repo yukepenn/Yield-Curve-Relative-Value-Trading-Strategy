@@ -150,10 +150,78 @@ def initialize_fred():
         logger.error(f"Failed to initialize FRED API: {str(e)}")
         raise
 
+def clean_and_align_data(df, is_trading_data=True):
+    """
+    Clean and align time series data.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame with datetime index
+    is_trading_data : bool
+        If True, keep only business days
+        If False, keep all days
+        
+    Returns
+    -------
+    pd.DataFrame
+        Cleaned and aligned DataFrame
+    """
+    if df.empty:
+        return df
+        
+    # Convert index to datetime if not already
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+    
+    # Sort index
+    df = df.sort_index()
+    
+    # Get the initial number of missing values
+    initial_missing = df.isna().sum()
+    if initial_missing.any():
+        logger.info("Initial missing values:")
+        for col in df.columns:
+            missing_count = initial_missing[col]
+            if missing_count > 0:
+                logger.info(f"- {col}: {missing_count} missing values")
+    
+    # Handle missing values for each column separately to prevent forward bias
+    for col in df.columns:
+        series = df[col]
+        
+        # Find the first non-null value index
+        first_valid_idx = series.first_valid_index()
+        
+        if first_valid_idx is not None:
+            # Fill missing values before first valid value with 0
+            mask_before_first = (series.index < first_valid_idx)
+            df.loc[mask_before_first, col] = 0
+            
+            # Forward fill after first valid value until next valid value
+            df[col] = df[col].ffill()
+    
+    # For trading data, only keep business days
+    if is_trading_data:
+        df = df[df.index.dayofweek < 5]
+    
+    # Log data quality statistics
+    logger.info("Data quality statistics:")
+    logger.info(f"- Date range: {df.index.min()} to {df.index.max()}")
+    logger.info(f"- Number of observations: {len(df)}")
+    for col in df.columns:
+        unique_vals = df[col].nunique()
+        logger.info(f"- {col}: {unique_vals} unique values")
+        first_nonzero = df[df[col] != 0][col].first_valid_index()
+        if first_nonzero:
+            logger.info(f"- {col}: First non-zero value at {first_nonzero}")
+    
+    return df
+
 def fetch_treasury_data(fred, start_date=None, end_date=None):
     """
     Fetch Treasury yield data from FRED.
-
+    
     Parameters
     ----------
     fred : fredapi.Fred
@@ -162,7 +230,7 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
         Start date in 'YYYY-MM-DD' format. If None, defaults to 2010-01-01.
     end_date : str, optional
         End date in 'YYYY-MM-DD' format. If None, defaults to today.
-
+        
     Returns
     -------
     pd.DataFrame
@@ -200,6 +268,9 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
         if all(x in treasury_data.columns for x in ['10-Year', '30-Year']):
             treasury_data['10s30s Spread'] = treasury_data['30-Year'] - treasury_data['10-Year']
 
+        # Clean and align data
+        treasury_data = clean_and_align_data(treasury_data, is_trading_data=True)
+
         # Round all values to 4 decimal places
         treasury_data = treasury_data.round(4)
 
@@ -213,7 +284,7 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
 def fetch_macro_data(fred, start_date=None, end_date=None):
     """
     Fetch macroeconomic indicator data from FRED.
-
+    
     Parameters
     ----------
     fred : fredapi.Fred
@@ -222,7 +293,7 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
         Start date in 'YYYY-MM-DD' format. If None, defaults to 2010-01-01.
     end_date : str, optional
         End date in 'YYYY-MM-DD' format. If None, defaults to today.
-
+        
     Returns
     -------
     pd.DataFrame
@@ -261,6 +332,9 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
         if macro_data.empty:
             raise ValueError("No macro data was successfully fetched")
 
+        # Clean and align data - most macro data is not daily trading data
+        macro_data = clean_and_align_data(macro_data, is_trading_data=False)
+
         # Round all values to 4 decimal places
         macro_data = macro_data.round(4)
 
@@ -271,32 +345,28 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
         logger.error(f"Failed to fetch macro data: {str(e)}")
         raise
 
-def save_data(data, filename, directory='data/raw'):
+def save_data(df, filename):
     """
-    Save data to CSV file.
-
+    Save DataFrame to CSV file.
+    
     Parameters
     ----------
-    data : pd.DataFrame
-        Data to save
+    df : pd.DataFrame
+        DataFrame to save
     filename : str
-        Name of the file (without .csv extension)
-    directory : str, optional
-        Directory to save the file in, by default 'data/raw'
+        Target filename in data/raw directory
     """
     try:
-        # Create directory if it doesn't exist
-        os.makedirs(directory, exist_ok=True)
+        # Create data directory if it doesn't exist
+        os.makedirs('data/raw', exist_ok=True)
         
-        # Construct full file path
-        filepath = os.path.join(directory, f"{filename}.csv")
-        
-        # Save data
-        data.to_csv(filepath)
+        # Save to CSV
+        filepath = os.path.join('data/raw', filename)
+        df.to_csv(filepath)
         logger.info(f"Successfully saved data to {filepath}")
-
+        
     except Exception as e:
-        logger.error(f"Failed to save data: {str(e)}")
+        logger.error(f"Failed to save data to {filename}: {str(e)}")
         raise
 
 def update_all_data():
@@ -309,11 +379,11 @@ def update_all_data():
         
         # Fetch Treasury data
         treasury_data = fetch_treasury_data(fred)
-        save_data(treasury_data, 'treasury_yields')
+        save_data(treasury_data, 'treasury_yields.csv')
         
         # Fetch macro data
         macro_data = fetch_macro_data(fred)
-        save_data(macro_data, 'macro_indicators')
+        save_data(macro_data, 'macro_indicators.csv')
         
         logger.info("Successfully updated all data")
         

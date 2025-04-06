@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+when new changes,foundings,fix,bug are being made/found, always update into PROGRESS.md
+
+-including time
+-including summaries
+
+when new changes,foundings,fix,bug are being made/found, always update into CHANGES.md, CHANGES.md will always be updating forward, without deleting previous entries.
+-including time
+-including summaries

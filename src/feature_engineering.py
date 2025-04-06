@@ -47,25 +47,38 @@ class FeatureEngineer:
         self.features = pd.DataFrame()
         
     def _compute_calendar_features(self, dates: pd.DatetimeIndex) -> pd.DataFrame:
-        """Compute calendar-based features."""
+        """
+        Compute calendar-based features.
+        
+        Args:
+            dates (pd.DatetimeIndex): DateTimeIndex of the data
+            
+        Returns:
+            pd.DataFrame: Calendar features
+        """
+        logger.info("Computing calendar features...")
+        
+        # Ensure dates have frequency set
+        dates = pd.DatetimeIndex(dates).to_period('D').to_timestamp('D')
+        
         calendar_features = pd.DataFrame(index=dates)
+        calendar_features['day_of_week'] = dates.dayofweek
+        calendar_features['day_of_month'] = dates.day
+        calendar_features['week_of_year'] = dates.isocalendar().week
+        calendar_features['month'] = dates.month
+        calendar_features['quarter'] = dates.quarter
+        calendar_features['year'] = dates.year
         
-        # FOMC meeting dates (approximate using Fed Funds rate changes)
-        calendar_features['is_fomc_day'] = self.macro_data['Federal Funds Rate'].diff().ne(0)
-        
-        # Month/quarter-end effects
-        calendar_features['days_to_month_end'] = dates.daysinmonth - dates.day
-        calendar_features['is_month_end'] = calendar_features['days_to_month_end'] == 0
+        # Compute end-of-period indicators
+        calendar_features['is_month_end'] = dates.month != dates.shift(1).month
         calendar_features['is_quarter_end'] = dates.quarter != dates.shift(1).quarter
         calendar_features['is_year_end'] = dates.year != dates.shift(1).year
         
-        # Day of week effects (0=Monday, 4=Friday)
-        for i in range(5):
-            calendar_features[f'is_weekday_{i}'] = dates.dayofweek == i
-            
-        # Holiday effects
-        calendar_features['is_pre_holiday'] = [date + timedelta(days=1) in US_HOLIDAYS for date in dates]
-        calendar_features['is_post_holiday'] = [date - timedelta(days=1) in US_HOLIDAYS for date in dates]
+        # Add holiday features
+        us_holidays = holidays.US()
+        calendar_features['is_holiday'] = [date in us_holidays for date in dates]
+        calendar_features['is_day_before_holiday'] = [date + pd.Timedelta(days=1) in us_holidays for date in dates]
+        calendar_features['is_day_after_holiday'] = [date - pd.Timedelta(days=1) in us_holidays for date in dates]
         
         return calendar_features
 
@@ -182,50 +195,31 @@ class FeatureEngineer:
 
     def create_features(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Create full feature set and targets.
+        Create all features and target variables.
         
-        Returns
-        -------
-        Tuple[pd.DataFrame, pd.DataFrame]
-            features_df: DataFrame with all features
-            targets_df: DataFrame with all targets
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Features and targets DataFrames
         """
         logger.info("Starting feature engineering process...")
         
-        # Initialize features DataFrame
+        # Initialize features DataFrame with index from treasury data
         features = pd.DataFrame(index=self.treasury_data.index)
         
-        # 1. Calendar features
-        logger.info("Computing calendar features...")
+        # Add different types of features
         features = pd.concat([features, self._compute_calendar_features(self.treasury_data.index)], axis=1)
-        
-        # 2. Trend features for each spread
-        logger.info("Computing trend features...")
-        for spread_name, (short_tenor, long_tenor) in SPREADS.items():
-            spread = self.treasury_data[long_tenor] - self.treasury_data[short_tenor]
-            spread_features = self._compute_trend_features(pd.DataFrame({spread_name: spread}), spread_name)
-            features = pd.concat([features, spread_features], axis=1)
-        
-        # 3. Yield curve features
-        logger.info("Computing yield curve features...")
+        features = pd.concat([features, self._compute_trend_features(self.treasury_data, '2-Year')], axis=1)
         features = pd.concat([features, self._compute_yield_curve_features()], axis=1)
-        
-        # 4. Carry features
-        logger.info("Computing carry features...")
         features = pd.concat([features, self._compute_carry_features()], axis=1)
-        
-        # 5. Macro features (already have these from data_ingestion)
-        logger.info("Adding macro features...")
         features = pd.concat([features, self.macro_data], axis=1)
         
-        # 6. Compute targets
-        logger.info("Computing targets...")
+        # Compute target variables
         targets = self._compute_targets()
         
-        # Remove rows with NaN values
-        features = features.fillna(method='ffill').fillna(0)
+        # Handle missing values
+        features = features.ffill().fillna(0)  # Forward fill then fill remaining NaNs with 0
+        targets = targets.ffill().fillna(0)    # Same for targets
         
-        logger.info(f"Feature engineering complete. Created {len(features.columns)} features.")
+        logger.info(f"Feature engineering complete. Created {features.shape[1]} features.")
         
         return features, targets
 
