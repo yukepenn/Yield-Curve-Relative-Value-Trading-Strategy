@@ -4,6 +4,15 @@ This document maintains a chronological record of all changes made to the Yield 
 
 ## 2024-04-06
 
+### 16:50 EDT
+- Enhanced data cleaning process in data_ingestion.py:
+  - Removed max_fill limit for forward filling
+  - Implemented zero-filling before first valid data point to prevent forward bias
+  - Added unlimited forward fill after first valid point until next data update
+  - Improved data quality logging with detailed statistics
+  - Added tracking of first non-zero values for each series
+  - Maintained business day filtering for trading data
+
 ### 16:30 EDT - Enhanced Data Ingestion Module
 - Expanded Treasury yield data collection:
   - Added short-term yields (3M, 6M, 1Y)
@@ -140,3 +149,19 @@ This document maintains a chronological record of all changes made to the Yield 
   - Comprehensive macro indicators (40+ indicators)
 - Default data range: 10 years of historical data
 - Data storage format: CSV in data/raw/ 
+
+## Configuration Files
+- requirements.txt: Core Python dependencies
+- .env: Environment variables for API keys
+- .gitignore: Git ignore rules
+
+## API Integration
+- FRED (Federal Reserve Economic Data)
+  - Treasury yields
+  - Macroeconomic indicators
+  - Market data
+
+## Directory Structure
+- Organized for data pipeline workflow
+- Separate directories for raw and processed data
+- Dedicated results and logging folders 
