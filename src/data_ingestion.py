@@ -147,6 +147,12 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
         
         if all(x in treasury_data.columns for x in ['3-Month', '10-Year']):
             treasury_data['3m10y Spread'] = treasury_data['10-Year'] - treasury_data['3-Month']
+            
+        if all(x in treasury_data.columns for x in ['2-Year', '5-Year']):
+            treasury_data['2s5s Spread'] = treasury_data['5-Year'] - treasury_data['2-Year']
+            
+        if all(x in treasury_data.columns for x in ['10-Year', '30-Year']):
+            treasury_data['10s30s Spread'] = treasury_data['30-Year'] - treasury_data['10-Year']
 
         logger.info("Successfully fetched Treasury yield data")
         return treasury_data
