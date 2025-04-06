@@ -46,6 +46,31 @@ This document maintains a chronological record of all changes made to the Yield 
   - Implemented time-based data splitting functionality
   - Added comprehensive logging for feature generation process
 
+### Feature Analysis Structure Documentation
+
+#### Analysis Organization
+- Documented complete structure of feature analysis results
+- Clarified different prediction strategies for each spread:
+  - Next Day (∆Spread): Precise numerical prediction for trade sizing
+  - Direction (+1/-1): Binary classification for directional trading
+  - Ternary: Classification for significant moves (strong up/neutral/strong down)
+
+#### Spread-Specific Analysis
+- Detailed analysis for each Treasury spread:
+  - 2s10s (2-year vs 10-year)
+  - 5s30s (5-year vs 30-year)
+  - 2s5s (2-year vs 5-year)
+  - 10s30s (10-year vs 30-year)
+  - 3m10y (3-month vs 10-year)
+
+#### Feature Selection Results
+- Documented feature selection process for each spread and strategy
+- Recorded number of selected features:
+  - Next Day: ~85-88 features
+  - Direction: ~85-88 features
+  - Ternary: ~21 features
+- Identified key features for each prediction type
+
 ### 16:50 EDT
 - Enhanced data cleaning process in data_ingestion.py:
   - Removed max_fill limit for forward filling
