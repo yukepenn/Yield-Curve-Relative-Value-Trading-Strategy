@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Data Collection:
+
+Run python src/data_ingestion.py to download and store raw data in data/raw/.
+
+Data Preprocessing & Feature Engineering:
+
+Execute python src/feature_engineering.py (or run the corresponding notebook) to process raw data, compute spreads, generate rolling features, integrate macro data, and create target variables.
+
+The output (features and targets) is saved in data/processed/features.csv and data/processed/targets.csv.
+
+Model Training:
+
+Run python src/model_training.py with appropriate command-line arguments or via configuration in config.yaml to:
+
+Load processed data.
+
+Train and validate models for each yield spread using walk-forward validation.
+
+Save trained models (e.g., as pickled files) in results/model_pickles/.
+
+Log performance metrics and store them in results/performance_reports/.
+
+Backtesting & Portfolio Simulation:
+
+Execute python src/backtest.py to simulate daily trading based on model predictions.
+
+The backtest module will:
+
+Re-train models periodically (if using rolling rebalancing).
+
+Apply trade construction rules to generate daily positions using DV01-neutral sizing.
+
+Compute daily P&L, cumulative returns, and risk metrics.
+
+Save equity curve plots and performance summaries in results/plots/ and results/performance_reports/.
+
+Model Interpretability:
+
+Run python src/shap_analysis.py (or the associated notebook) to compute SHAP values for the best models.
+
+Generate global and local interpretability plots and save them in results/plots/.
+
+Reporting & Visualization:
+
+Use notebooks (e.g., notebooks/3_backtest_results.ipynb) to create final reports that include:
+
+Equity curves, drawdown charts, and performance metrics.
+
+SHAP summary plots with commentary.
+
+A discussion of key findings, limitations, and next steps.
+
+Version Control & Reproducibility:
+
+All code changes are committed with descriptive messages.
+
+Configuration files (like config.yaml) and environment files (requirements.txt or environment.yml) are kept updated.
+
+Logs are stored in results/logs/training.log for traceability.
