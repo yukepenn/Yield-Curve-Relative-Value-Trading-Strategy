@@ -67,6 +67,7 @@ MACRO_TICKERS = {
     'BAMLC0A4CBBB': 'BBB Corporate Spread',
     'BAMLC0A1CAAAEY': 'AA Corporate Spread',
     'BAMLC0A2CAAAEY': 'A Corporate Spread',
+    'BAMLC0A3CM': 'CMBS Spread',
     
     # Economic Indicators
     'UNRATE': 'Unemployment Rate',
@@ -91,9 +92,7 @@ MACRO_TICKERS = {
     'M1SL': 'M1 Money Supply',
     'MZM': 'MZM Money Supply',
     'BOGMBASE': 'Monetary Base',
-    'TOTCI': 'Commercial and Industrial Loans',
     'TOTBKCR': 'Total Bank Credit',
-    'TOTCI': 'Commercial and Industrial Loans',
     
     # Market Indicators
     'SP500': 'S&P 500',
@@ -105,6 +104,23 @@ MACRO_TICKERS = {
     'DEXJPUS': 'JPY/USD Exchange Rate',
     'DEXCHUS': 'CNY/USD Exchange Rate',
     
+    # Volatility and Risk Measures
+    'GVZCLS': 'Gold VIX',
+    'OVXCLS': 'Oil VIX',
+    'VXTYN': 'Treasury VIX',
+    'VXDCLS': 'DJIA Volatility Index',
+    'VXNCLS': 'NASDAQ Volatility Index',
+    'VXEEMCLS': 'Emerging Markets VIX',
+    'VXEWZCLS': 'Brazil VIX',
+    
+    # Bond Market Indicators
+    'T10Y3M': '10Y-3M Treasury Spread',
+    'T10Y2Y': '10Y-2Y Treasury Spread',
+    'T10YFF': '10Y-Fed Funds Spread',
+    
+    # Market Liquidity Measures
+    'TEDRATE': 'TED Spread',
+    
     # Business Cycle
     'USREC': 'NBER Recession Indicator',
     'USSLIND': 'Leading Index',
@@ -113,14 +129,6 @@ MACRO_TICKERS = {
     'CSCICP03USM665S': 'Consumer Confidence',
     'UMCSENT1': 'Consumer Expectations',
     'RRSFS': 'Real Retail Sales',
-    'IPB50001SQ': 'Business Equipment Production',
-    'IPCONGD': 'Consumer Goods Production',
-    'IPDMAT': 'Durable Materials Production',
-    'IPNMAT': 'Nondurable Materials Production',
-    'IPFINAL': 'Final Products Production',
-    'IPMANSICS': 'Manufacturing Capacity Utilization',
-    'TCU': 'Total Capacity Utilization',
-    'IPMAN': 'Manufacturing Production',
     'IPB50001SQ': 'Business Equipment Production',
     'IPCONGD': 'Consumer Goods Production',
     'IPDMAT': 'Durable Materials Production',
