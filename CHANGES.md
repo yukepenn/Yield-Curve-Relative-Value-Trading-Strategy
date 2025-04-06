@@ -190,3 +190,16 @@ This document maintains a chronological record of all changes made to the Yield 
   - Enables time-based splits
   - Supports cross-validation
 - Reduced storage requirements and file management complexity
+
+## 2024-04-06 17:50 EDT
+
+### Data Directory Cleanup
+- Removed unnecessary split files from data/processed/:
+  - Deleted train_features.csv, val_features.csv, test_features.csv
+  - Deleted train_targets.csv, val_targets.csv, test_targets.csv
+- Kept essential files:
+  - features.csv (4.2MB)
+  - targets.csv (274KB)
+  - feature_stats.txt (7.5KB)
+- Reduced storage requirements by ~4.2MB
+- Simplified data management
