@@ -113,11 +113,6 @@ MACRO_TICKERS = {
     'VXEEMCLS': 'Emerging Markets VIX',
     'VXEWZCLS': 'Brazil VIX',
     
-    # Bond Market Indicators
-    'T10Y3M': '10Y-3M Treasury Spread',
-    'T10Y2Y': '10Y-2Y Treasury Spread',
-    'T10YFF': '10Y-Fed Funds Spread',
-    
     # Market Liquidity Measures
     'TEDRATE': 'TED Spread',
     
