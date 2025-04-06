@@ -44,6 +44,9 @@ MACRO_TICKERS = {
     'DFEDTARU': 'Fed Funds Target Upper',
     'DFEDTARL': 'Fed Funds Target Lower',
     'IORB': 'Interest on Reserve Balances',
+    'RRPONTSYD': 'Reverse Repo Rate',
+    'WALCL': 'Fed Balance Sheet',
+    'TOTCI': 'Commercial and Industrial Loans',
     
     # Inflation Metrics
     'CPIAUCSL': 'CPI All Items',
@@ -52,11 +55,18 @@ MACRO_TICKERS = {
     'PCEPILFE': 'Core PCE Price Index',
     'T5YIE': '5Y Breakeven Inflation',
     'T10YIE': '10Y Breakeven Inflation',
+    'T5YIFR': '5Y Forward Inflation',
+    'T10YIFR': '10Y Forward Inflation',
+    'PPIFIS': 'PPI Final Demand',
+    'PPIFGS': 'PPI Finished Goods',
     
     # Credit Spreads
     'BAA10Y': 'Baa Corporate vs 10Y Treasury',
     'AAA10Y': 'Aaa Corporate vs 10Y Treasury',
     'BAMLH0A0HYM2': 'ICE BofA High Yield Spread',
+    'BAMLC0A4CBBB': 'BBB Corporate Spread',
+    'BAMLC0A1CAAAEY': 'AA Corporate Spread',
+    'BAMLC0A2CAAAEY': 'A Corporate Spread',
     
     # Economic Indicators
     'UNRATE': 'Unemployment Rate',
@@ -68,9 +78,21 @@ MACRO_TICKERS = {
     'HOUST': 'Housing Starts',
     'PERMIT': 'Building Permits',
     'RSAFS': 'Retail Sales',
+    'DGORDER': 'Durable Goods Orders',
+    'IPMAN': 'Manufacturing Production',
+    'IPMANSICS': 'Manufacturing Capacity Utilization',
+    'TCU': 'Total Capacity Utilization',
+    'RETAILIMSA': 'Retail Inventories',
+    'WHLSLRIMSA': 'Wholesale Inventories',
+    'CP': 'Corporate Profits',
     
     # Money Supply and Bank Credit
     'M2SL': 'M2 Money Supply',
+    'M1SL': 'M1 Money Supply',
+    'MZM': 'MZM Money Supply',
+    'BOGMBASE': 'Monetary Base',
+    'TOTCI': 'Commercial and Industrial Loans',
+    'TOTBKCR': 'Total Bank Credit',
     'TOTCI': 'Commercial and Industrial Loans',
     
     # Market Indicators
@@ -79,12 +101,31 @@ MACRO_TICKERS = {
     'DTWEXB': 'Dollar Index',
     'DCOILWTICO': 'WTI Crude Oil Price',
     'GOLDAMGBD228NLBM': 'Gold Price',
+    'DEXUSEU': 'USD/EUR Exchange Rate',
+    'DEXJPUS': 'JPY/USD Exchange Rate',
+    'DEXCHUS': 'CNY/USD Exchange Rate',
     
     # Business Cycle
     'USREC': 'NBER Recession Indicator',
     'USSLIND': 'Leading Index',
     'NAPMNMI': 'ISM Services PMI',
-    'NAPM': 'ISM Manufacturing PMI'
+    'NAPM': 'ISM Manufacturing PMI',
+    'CSCICP03USM665S': 'Consumer Confidence',
+    'UMCSENT1': 'Consumer Expectations',
+    'RRSFS': 'Real Retail Sales',
+    'IPB50001SQ': 'Business Equipment Production',
+    'IPCONGD': 'Consumer Goods Production',
+    'IPDMAT': 'Durable Materials Production',
+    'IPNMAT': 'Nondurable Materials Production',
+    'IPFINAL': 'Final Products Production',
+    'IPMANSICS': 'Manufacturing Capacity Utilization',
+    'TCU': 'Total Capacity Utilization',
+    'IPMAN': 'Manufacturing Production',
+    'IPB50001SQ': 'Business Equipment Production',
+    'IPCONGD': 'Consumer Goods Production',
+    'IPDMAT': 'Durable Materials Production',
+    'IPNMAT': 'Nondurable Materials Production',
+    'IPFINAL': 'Final Products Production'
 }
 
 def initialize_fred():
