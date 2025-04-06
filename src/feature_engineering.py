@@ -224,49 +224,25 @@ class FeatureEngineer:
         
         return features, targets
 
-    def save_processed_data(self, features: pd.DataFrame, targets: pd.DataFrame) -> None:
-        """Save processed data to CSV files with 4 decimal places."""
-        # Create processed directory if it doesn't exist
-        processed_dir = Path('data/processed')
-        processed_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Round all numeric values to 4 decimal places
-        features = features.round(4)
-        targets = targets.round(4)
-        
-        # Save full dataset
-        features.to_csv(processed_dir / 'features.csv')
-        targets.to_csv(processed_dir / 'targets.csv')
-        
-        # Save feature statistics
-        feature_stats = pd.DataFrame({
-            'mean': features.mean(),
-            'std': features.std(),
-            'min': features.min(),
-            'max': features.max()
-        }).round(4)
-        feature_stats.to_csv(processed_dir / 'feature_stats.txt')
-        
-        # Create and save data splits
-        train_size = int(0.4 * len(features))
-        val_size = int(0.2 * len(features))
-        
-        train_features = features.iloc[:train_size]
-        val_features = features.iloc[train_size:train_size + val_size]
-        test_features = features.iloc[train_size + val_size:]
-        
-        train_targets = targets.iloc[:train_size]
-        val_targets = targets.iloc[train_size:train_size + val_size]
-        test_targets = targets.iloc[train_size + val_size:]
-        
-        # Save splits
-        train_features.to_csv(processed_dir / 'train_features.csv')
-        val_features.to_csv(processed_dir / 'val_features.csv')
-        test_features.to_csv(processed_dir / 'test_features.csv')
-        
-        train_targets.to_csv(processed_dir / 'train_targets.csv')
-        val_targets.to_csv(processed_dir / 'val_targets.csv')
-        test_targets.to_csv(processed_dir / 'test_targets.csv')
+    def save_processed_data(self) -> None:
+        """Save processed data to CSV files."""
+        try:
+            # Create processed directory if it doesn't exist
+            processed_dir = Path('data/processed')
+            processed_dir.mkdir(exist_ok=True)
+            
+            # Save features and targets
+            self.features.to_csv(processed_dir / 'features.csv')
+            self.targets.to_csv(processed_dir / 'targets.csv')
+            
+            # Save feature statistics
+            self._save_feature_statistics(processed_dir)
+            
+            logger.info("Processed data saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Error saving processed data: {str(e)}")
+            raise
 
 def create_train_val_test_splits(
     features: pd.DataFrame,
@@ -340,7 +316,7 @@ def main():
     
     # Save processed data
     logger.info("Saving processed data...")
-    feature_engineer.save_processed_data(features, targets)
+    feature_engineer.save_processed_data()
     
     logger.info("Feature engineering pipeline complete. Check data/processed/ for results.")
 

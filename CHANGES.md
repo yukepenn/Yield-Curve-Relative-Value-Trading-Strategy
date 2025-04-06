@@ -179,3 +179,14 @@ This document maintains a chronological record of all changes made to the Yield 
 - Added support for both regression and classification tasks
 - Enhanced analysis report organization and clarity
 - Improved code documentation and logging
+
+## 2024-04-06 17:45 EDT
+
+### Feature Engineering Simplification
+- Removed train-test split functionality from feature engineering
+- Simplified data storage to only features.csv and targets.csv
+- Improved flexibility for model development:
+  - Allows different split strategies
+  - Enables time-based splits
+  - Supports cross-validation
+- Reduced storage requirements and file management complexity
