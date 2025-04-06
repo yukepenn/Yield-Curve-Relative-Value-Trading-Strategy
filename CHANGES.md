@@ -223,3 +223,160 @@ This document maintains a chronological record of all changes made to the Yield 
   - targets.csv (538KB, 15 targets)
   - feature_stats.txt (9.0KB)
 - Improved code organization and error handling
+
+## 2024-04-06 22:55 EDT
+
+### Feature Analysis Pipeline Rerun
+- Successfully analyzed all features for each spread and target type
+- Generated comprehensive analysis reports:
+  - Feature importance rankings
+  - Feature-target relationships
+  - Correlation analysis
+  - Selected feature sets
+- Results by spread and target type:
+  - 2s10s: 87-89 features (next_day/direction), 21 features (ternary)
+  - 5s30s: 87 features (next_day/direction), 21 features (ternary)
+  - 2s5s: 87-88 features (next_day/direction), 21 features (ternary)
+  - 10s30s: 87 features (next_day/direction), 0 features (ternary)
+  - 3m10y: 87-88 features (next_day/direction), 21 features (ternary)
+- Saved detailed analysis in results/feature_analysis/
+
+## 2024-04-06 23:15 EDT
+
+### 10s30s Ternary Classification Investigation
+
+#### Issue Analysis
+1. Target Distribution:
+   - All 3,980 samples labeled as class 0
+   - No samples in classes 1 or 2
+   - Complete class imbalance preventing meaningful classification
+
+2. Root Cause:
+   - Ternary classification thresholds too strict for 10s30s spread
+   - Spread-specific volatility characteristics not considered
+   - Static thresholds not suitable for all spreads
+
+3. Impact:
+   - Zero features selected for classification
+   - No meaningful patterns found in feature importance
+   - Very low mutual information scores (<0.03)
+
+#### Recommended Solutions
+1. Threshold Adjustment:
+   - Implement spread-specific thresholds
+   - Use historical volatility for threshold determination
+   - Consider dynamic thresholding based on rolling statistics
+
+2. Alternative Approaches:
+   - Use different classification strategy for 10s30s
+   - Implement adaptive thresholding
+   - Consider regression-based approach instead
+
+## 2024-04-06 23:30 EDT
+
+### 10s30s Ternary Classification Investigation Postponed
+
+#### Decision
+- Temporarily postponing investigation of 10s30s ternary classification issue
+- Removing temporary analysis script (analyze_target.py)
+- Will revisit the issue during model development phase
+
+#### Current Status
+- 10s30s spread will use only next-day and direction predictions
+- Ternary classification temporarily disabled for 10s30s
+- Other spreads continue with all three prediction types
+
+#### Future Plans
+- Revisit ternary classification during model development
+- Consider alternative approaches for 10s30s spread
+- Implement spread-specific thresholding when needed
+
+## 2024-04-06 23:45 EDT
+
+### Model Training Implementation
+
+#### Model Training Module
+1. Core Components:
+   - ModelTrainer class for per-spread model training
+   - Support for multiple model types (Ridge, Lasso, RF, XGBoost)
+   - Walk-forward validation implementation
+   - Comprehensive logging and error handling
+
+2. Features:
+   - Automatic data loading and alignment
+   - Model type selection based on target type
+   - Performance metrics calculation
+   - Feature importance tracking
+   - Model and results persistence
+
+3. Implementation Details:
+   - Time series cross-validation
+   - Spread-specific model training
+   - Target type-specific metrics
+   - Error handling and logging
+   - Results storage in structured format
+
+#### Model Types
+1. Regression Models:
+   - Ridge regression
+   - Lasso regression
+   - Random Forest regressor
+   - XGBoost regressor
+
+2. Classification Models:
+   - Random Forest classifier
+   - XGBoost classifier (multi-class)
+
+#### Validation Strategy
+1. Walk-Forward Validation:
+   - Time series cross-validation
+   - Multiple validation splits
+   - Performance metrics tracking
+   - Feature importance analysis
+
+2. Performance Metrics:
+   - MSE for regression tasks
+   - Accuracy and F1 for classification
+   - Feature importance scores
+
+## 2024-04-06 23:55 EDT
+
+### Enhanced Model Training Implementation
+
+#### Model Type-Specific Improvements
+1. Next Day Prediction (Regression):
+   - Added feature scaling for linear models
+   - Implemented MSE metric tracking
+   - Added prediction storage for analysis
+   - Enhanced model persistence
+
+2. Direction Prediction (Binary Classification):
+   - Added class imbalance handling
+   - Implemented ROC-AUC metric
+   - Added probability calibration
+   - Enhanced prediction storage
+
+3. Ternary Classification:
+   - Added multi-class support
+   - Implemented class weights
+   - Added probability tracking
+   - Enhanced metrics calculation
+
+#### General Improvements
+1. Data Processing:
+   - Added feature scaling
+   - Implemented class weight calculation
+   - Enhanced data alignment
+   - Improved error handling
+
+2. Model Training:
+   - Added model-specific configurations
+   - Enhanced walk-forward validation
+   - Improved metrics tracking
+   - Added prediction storage
+
+3. Results Management:
+   - Enhanced model persistence
+   - Added scaler saving
+   - Improved results storage
+   - Enhanced logging
