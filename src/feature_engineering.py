@@ -12,6 +12,7 @@ import logging
 from sklearn.decomposition import PCA
 from datetime import datetime, timedelta
 import holidays
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -262,4 +263,65 @@ def create_train_val_test_splits(
         'train': (train_features, train_targets),
         'validation': (val_features, val_targets),
         'test': (test_features, test_targets)
-    } 
+    }
+
+def main():
+    """Run the feature engineering pipeline."""
+    # Set up logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    logger = logging.getLogger(__name__)
+    
+    # Set up paths
+    data_dir = Path('data')
+    raw_dir = data_dir / 'raw'
+    processed_dir = data_dir / 'processed'
+    processed_dir.mkdir(exist_ok=True)
+    
+    # Load raw data
+    logger.info("Loading raw data...")
+    treasury_data = pd.read_csv(raw_dir / 'treasury_yields.csv', index_col=0, parse_dates=True)
+    macro_data = pd.read_csv(raw_dir / 'macro_indicators.csv', index_col=0, parse_dates=True)
+    logger.info(f"Loaded data with shapes: Treasury={treasury_data.shape}, Macro={macro_data.shape}")
+    
+    # Initialize feature engineering
+    logger.info("Initializing feature engineering...")
+    feature_engineer = FeatureEngineer(treasury_data, macro_data)
+    
+    # Generate features and targets
+    logger.info("Generating features and targets...")
+    features, targets = feature_engineer.create_features()
+    
+    # Create data splits
+    logger.info("Creating data splits...")
+    train_size = int(0.4 * len(features))
+    val_size = int(0.2 * len(features))
+    
+    train_features = features.iloc[:train_size]
+    val_features = features.iloc[train_size:train_size + val_size]
+    test_features = features.iloc[train_size + val_size:]
+    
+    train_targets = targets.iloc[:train_size]
+    val_targets = targets.iloc[train_size:train_size + val_size]
+    test_targets = targets.iloc[train_size + val_size:]
+    
+    logger.info(f"Train set size: {len(train_features)} samples")
+    logger.info(f"Validation set size: {len(val_features)} samples")
+    logger.info(f"Test set size: {len(test_features)} samples")
+    
+    # Save processed data
+    logger.info("Saving processed data...")
+    train_features.to_csv(processed_dir / 'train_features.csv')
+    val_features.to_csv(processed_dir / 'val_features.csv')
+    test_features.to_csv(processed_dir / 'test_features.csv')
+    
+    train_targets.to_csv(processed_dir / 'train_targets.csv')
+    val_targets.to_csv(processed_dir / 'val_targets.csv')
+    test_targets.to_csv(processed_dir / 'test_targets.csv')
+    
+    logger.info("Feature engineering pipeline complete. Check data/processed/ for results.")
+
+if __name__ == "__main__":
+    main() 
