@@ -159,7 +159,7 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
     fred : fredapi.Fred
         Initialized FRED API connection
     start_date : str, optional
-        Start date in 'YYYY-MM-DD' format. If None, defaults to 10 years ago.
+        Start date in 'YYYY-MM-DD' format. If None, defaults to 2010-01-01.
     end_date : str, optional
         End date in 'YYYY-MM-DD' format. If None, defaults to today.
 
@@ -173,7 +173,7 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
         if end_date is None:
             end_date = datetime.now()
         if start_date is None:
-            start_date = end_date - timedelta(days=365*10)  # 10 years of data
+            start_date = datetime(2010, 1, 1)  # Default to January 1, 2010
 
         # Initialize empty DataFrame
         treasury_data = pd.DataFrame()
@@ -200,6 +200,9 @@ def fetch_treasury_data(fred, start_date=None, end_date=None):
         if all(x in treasury_data.columns for x in ['10-Year', '30-Year']):
             treasury_data['10s30s Spread'] = treasury_data['30-Year'] - treasury_data['10-Year']
 
+        # Round all values to 4 decimal places
+        treasury_data = treasury_data.round(4)
+
         logger.info("Successfully fetched Treasury yield data")
         return treasury_data
 
@@ -216,7 +219,7 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
     fred : fredapi.Fred
         Initialized FRED API connection
     start_date : str, optional
-        Start date in 'YYYY-MM-DD' format. If None, defaults to 10 years ago.
+        Start date in 'YYYY-MM-DD' format. If None, defaults to 2010-01-01.
     end_date : str, optional
         End date in 'YYYY-MM-DD' format. If None, defaults to today.
 
@@ -230,7 +233,7 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
         if end_date is None:
             end_date = datetime.now()
         if start_date is None:
-            start_date = end_date - timedelta(days=365*10)  # 10 years of data
+            start_date = datetime(2010, 1, 1)  # Default to January 1, 2010
 
         # Initialize empty DataFrame
         macro_data = pd.DataFrame()
@@ -257,6 +260,9 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
 
         if macro_data.empty:
             raise ValueError("No macro data was successfully fetched")
+
+        # Round all values to 4 decimal places
+        macro_data = macro_data.round(4)
 
         logger.info("Successfully fetched macroeconomic data")
         return macro_data
