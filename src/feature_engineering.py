@@ -204,25 +204,25 @@ class FeatureEngineer:
         logger.info("Starting feature engineering process...")
         
         # Initialize features DataFrame with index from treasury data
-        features = pd.DataFrame(index=self.treasury_data.index)
+        self.features = pd.DataFrame(index=self.treasury_data.index)
         
         # Add different types of features
-        features = pd.concat([features, self._compute_calendar_features(self.treasury_data.index)], axis=1)
-        features = pd.concat([features, self._compute_trend_features(self.treasury_data, '2-Year')], axis=1)
-        features = pd.concat([features, self._compute_yield_curve_features()], axis=1)
-        features = pd.concat([features, self._compute_carry_features()], axis=1)
-        features = pd.concat([features, self.macro_data], axis=1)
+        self.features = pd.concat([self.features, self._compute_calendar_features(self.treasury_data.index)], axis=1)
+        self.features = pd.concat([self.features, self._compute_trend_features(self.treasury_data, '2-Year')], axis=1)
+        self.features = pd.concat([self.features, self._compute_yield_curve_features()], axis=1)
+        self.features = pd.concat([self.features, self._compute_carry_features()], axis=1)
+        self.features = pd.concat([self.features, self.macro_data], axis=1)
         
         # Compute target variables
-        targets = self._compute_targets()
+        self.targets = self._compute_targets()
         
         # Handle missing values
-        features = features.ffill().fillna(0)  # Forward fill then fill remaining NaNs with 0
-        targets = targets.ffill().fillna(0)    # Same for targets
+        self.features = self.features.ffill().fillna(0)  # Forward fill then fill remaining NaNs with 0
+        self.targets = self.targets.ffill().fillna(0)    # Same for targets
         
-        logger.info(f"Feature engineering complete. Created {features.shape[1]} features.")
+        logger.info(f"Feature engineering complete. Created {self.features.shape[1]} features.")
         
-        return features, targets
+        return self.features, self.targets
 
     def save_processed_data(self) -> None:
         """Save processed data to CSV files."""
@@ -242,6 +242,25 @@ class FeatureEngineer:
             
         except Exception as e:
             logger.error(f"Error saving processed data: {str(e)}")
+            raise
+
+    def _save_feature_statistics(self, processed_dir: Path) -> None:
+        """Save feature statistics to a text file."""
+        try:
+            # Compute statistics
+            feature_stats = pd.DataFrame({
+                'mean': self.features.mean(),
+                'std': self.features.std(),
+                'min': self.features.min(),
+                'max': self.features.max()
+            }).round(4)
+            
+            # Save to file
+            feature_stats.to_csv(processed_dir / 'feature_stats.txt')
+            logger.info("Feature statistics saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Error saving feature statistics: {str(e)}")
             raise
 
 def create_train_val_test_splits(
