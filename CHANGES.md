@@ -4,6 +4,15 @@ This document maintains a chronological record of all changes made to the Yield 
 
 ## 2024-04-06
 
+### 18:00 EDT
+- Reorganized project structure:
+  - Created proper Python package structure with __init__.py files
+  - Moved test_features.py to tests/ directory
+  - Improved path handling using pathlib
+  - Added proper test return values and error handling
+  - Updated imports to work with new structure
+  - Created processed/ directory with automatic creation
+
 ### 17:30 EDT
 - Implemented comprehensive feature engineering module:
   - Added calendar features including FOMC days, holidays, and market events
@@ -175,3 +184,22 @@ This document maintains a chronological record of all changes made to the Yield 
 - Organized for data pipeline workflow
 - Separate directories for raw and processed data
 - Dedicated results and logging folders 
+
+## April 6, 2024 18:30 EDT
+### Fixed
+- Fixed DateTimeIndex frequency issue in feature engineering by properly setting the frequency before using shift()
+- Updated calendar features computation to use proper date handling
+- Fixed holiday features using the holidays package
+- Resolved FutureWarning for DataFrame.fillna by using more modern methods
+
+### Added
+- Improved logging in feature engineering process
+- Added more comprehensive calendar features
+- Added proper error handling in feature computation 
+
+## April 6, 2024 18:35 EDT
+### Changed
+- Optimized feature engineering to reduce redundant features (from 366 to 166 features)
+- Updated feature computation methods for better efficiency
+- Replaced deprecated fillna(method='ffill') with modern ffill() method
+- Improved logging messages for better clarity 
