@@ -38,6 +38,12 @@ This document maintains a chronological record of all changes made to the Yield 
 - Added logging system
 - Set up secure API key management
 
+### 15:34 EDT
+- Fixed data ingestion issues by removing problematic FRED series:
+  - Removed Gold Price series due to API availability issues
+  - Removed ISM Services PMI and ISM Manufacturing PMI series due to API availability issues
+  - All remaining series now fetch successfully
+
 ### 14:47 EDT - Directory Structure Setup
 - Created data management hierarchy:
   ```

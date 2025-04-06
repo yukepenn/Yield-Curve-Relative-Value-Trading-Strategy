@@ -56,7 +56,7 @@ MACRO_TICKERS = {
     'T5YIE': '5Y Breakeven Inflation',
     'T10YIE': '10Y Breakeven Inflation',
     'T5YIFR': '5Y Forward Inflation',
-    'T10YIFR': '10Y Forward Inflation',
+    'DFII10': '10Y TIPS Rate',
     'PPIFIS': 'PPI Final Demand',
     'PPIFGS': 'PPI Finished Goods',
     
@@ -66,8 +66,8 @@ MACRO_TICKERS = {
     'BAMLH0A0HYM2': 'ICE BofA High Yield Spread',
     'BAMLC0A4CBBB': 'BBB Corporate Spread',
     'BAMLC0A1CAAAEY': 'AA Corporate Spread',
-    'BAMLC0A2CAAAEY': 'A Corporate Spread',
-    'BAMLC0A3CM': 'CMBS Spread',
+    'BAMLC0A2CAA': 'A Corporate Spread',
+    'DRTSCIS': 'CMBS Spread',
     
     # Economic Indicators
     'UNRATE': 'Unemployment Rate',
@@ -99,7 +99,6 @@ MACRO_TICKERS = {
     'VIXCLS': 'CBOE VIX',
     'DTWEXB': 'Dollar Index',
     'DCOILWTICO': 'WTI Crude Oil Price',
-    'GOLDAMGBD228NLBM': 'Gold Price',
     'DEXUSEU': 'USD/EUR Exchange Rate',
     'DEXJPUS': 'JPY/USD Exchange Rate',
     'DEXCHUS': 'CNY/USD Exchange Rate',
@@ -113,16 +112,19 @@ MACRO_TICKERS = {
     'VXEEMCLS': 'Emerging Markets VIX',
     'VXEWZCLS': 'Brazil VIX',
     
+    # Bond Market Indicators
+    'T10Y3M': '10Y-3M Treasury Spread',
+    'T10Y2Y': '10Y-2Y Treasury Spread',
+    'T10YFF': '10Y-Fed Funds Spread',
+    
     # Market Liquidity Measures
     'TEDRATE': 'TED Spread',
     
     # Business Cycle
     'USREC': 'NBER Recession Indicator',
     'USSLIND': 'Leading Index',
-    'NAPMNMI': 'ISM Services PMI',
-    'NAPM': 'ISM Manufacturing PMI',
     'CSCICP03USM665S': 'Consumer Confidence',
-    'UMCSENT1': 'Consumer Expectations',
+    'MICH': 'Consumer Expectations',
     'RRSFS': 'Real Retail Sales',
     'IPB50001SQ': 'Business Equipment Production',
     'IPCONGD': 'Consumer Goods Production',
@@ -232,12 +234,29 @@ def fetch_macro_data(fred, start_date=None, end_date=None):
 
         # Initialize empty DataFrame
         macro_data = pd.DataFrame()
+        problematic_series = []
 
         # Fetch data for each macro indicator
         for ticker, name in MACRO_TICKERS.items():
-            logger.info(f"Fetching {name} data")
-            series = fred.get_series(ticker, start_date, end_date)
-            macro_data[name] = series
+            try:
+                logger.info(f"Fetching {name} data")
+                series = fred.get_series(ticker, start_date, end_date)
+                if series is not None and not series.empty:
+                    macro_data[name] = series
+                else:
+                    problematic_series.append((ticker, name, "Empty series"))
+            except Exception as e:
+                problematic_series.append((ticker, name, str(e)))
+                logger.warning(f"Failed to fetch {name} ({ticker}): {str(e)}")
+                continue
+
+        if problematic_series:
+            logger.warning("The following series had issues:")
+            for ticker, name, error in problematic_series:
+                logger.warning(f"- {name} ({ticker}): {error}")
+
+        if macro_data.empty:
+            raise ValueError("No macro data was successfully fetched")
 
         logger.info("Successfully fetched macroeconomic data")
         return macro_data
