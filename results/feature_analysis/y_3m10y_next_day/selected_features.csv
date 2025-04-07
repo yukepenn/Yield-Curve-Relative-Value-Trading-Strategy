@@ -1,0 +1,89 @@
+,0
+0,day_of_month
+1,Industrial Production
+2,2-Year_dist_ma_252d
+3,Consumer Sentiment
+4,Manufacturing Production
+5,AA Corporate Spread
+6,Brazil VIX
+7,CPI All Items
+8,10Y Breakeven Inflation
+9,Reverse Repo Rate
+10,JPY/USD Exchange Rate
+11,TED Spread
+12,CBOE VIX
+13,Leading Index
+14,2-Year_zscore_10d
+15,2-Year_dist_ma_126d
+16,USD/EUR Exchange Rate
+17,Treasury VIX
+18,Oil VIX
+19,2-Year_pct_change_252d
+20,ICE BofA High Yield Spread
+21,Durable Goods Orders
+22,2-Year_change_10d
+23,Aaa Corporate vs 10Y Treasury
+24,2-Year_pct_change_21d
+25,2-Year_zscore_126d
+26,Nondurable Materials Production
+27,5Y Breakeven Inflation
+28,2-Year_pct_change_126d
+29,Durable Materials Production
+30,is_holiday
+31,Unemployment Rate
+32,A Corporate Spread
+33,yield_pc1_level
+34,NASDAQ Volatility Index
+35,CNY/USD Exchange Rate
+36,is_month_end
+37,2-Year_change_21d
+38,2-Year_change_1d
+39,CMBS Spread
+40,week_of_year
+41,2-Year_change_63d
+42,Dollar Index
+43,PPI Finished Goods
+44,M1 Money Supply
+45,2s10s_level
+46,2-Year_vol_126d
+47,5Y Forward Inflation
+48,2-Year_vol_252d
+49,WTI Crude Oil Price
+50,2-Year_rsi_14d
+51,2-Year_pct_change_5d
+52,2-Year_zscore_252d
+53,Consumer Expectations
+54,Baa Corporate vs 10Y Treasury
+55,2-Year_dist_ma_10d
+56,2-Year_dist_ma_21d
+57,2-Year_pct_change_63d
+58,2-Year_vol_63d
+59,2-Year_pct_change_1d
+60,is_day_before_holiday
+61,yield_pc2_slope
+62,day_of_week
+63,2-Year_dist_ma_63d
+64,Consumer Goods Production
+65,10Y TIPS Rate
+66,yield_pc3_curvature
+67,2-Year_change_252d
+68,2-Year_dist_ma_5d
+69,2-Year_zscore_63d
+70,Housing Starts
+71,is_day_after_holiday
+72,Emerging Markets VIX
+73,2-Year_pct_change_10d
+74,2-Year_zscore_21d
+75,2-Year_vol_21d
+76,2-Year_change_126d
+77,2-Year_change_5d
+78,Nonfarm Payrolls
+79,2-Year_ma_1d
+80,Gold VIX
+81,Final Products Production
+82,Total Capacity Utilization
+83,5s30s_level
+84,2s10s_carry_return_63d
+85,2-Year_vol_5d
+86,2-Year_zscore_5d
+87,2-Year_vol_10d

@@ -24,6 +24,18 @@ This document maintains a chronological record of all changes made to the Yield 
 - Created yield curve PCA components
 - Added carry and roll-down features
 - Maintained proper data splitting
+- Refactor(data): Improved data cleaning strategy in feature_engineering.py
+  - Changed NaN handling to preserve more data points
+  - Implemented sequential cleaning steps:
+    1. Replace NaN with 0
+    2. Forward fill missing values
+    3. Backfill for columns starting with 0
+    4. Replace remaining 0s with NaN and forward fill
+  - Results:
+    - Preserved all 3980 data points
+    - Generated 853 features
+    - Maintained balanced class distributions
+    - Properly handled rolling window calculations
 
 ## 2024-04-06
 
@@ -380,3 +392,116 @@ This document maintains a chronological record of all changes made to the Yield 
    - Added scaler saving
    - Improved results storage
    - Enhanced logging
+
+## 2024-04-07 00:15 EDT
+
+### Initial Model Training Implementation
+
+#### Training Script Creation
+1. Created `run_training.py` to systematically train models for:
+   - All spreads (2s10s, 5s30s, 2s5s, 10s30s, 3m10y)
+   - All prediction types (next_day, direction, ternary)
+   - All model types (ridge, lasso, rf, xgb)
+
+2. Features:
+   - Comprehensive logging of training progress
+   - Automatic directory creation for results
+   - Summary results collection and storage
+   - Error handling for each training run
+   - Skip ternary classification for 10s30s spread
+
+3. Output Files:
+   - Individual model files in `results/model_pickles/`
+   - Training results in `results/model_training/`
+   - Summary results in `results/model_training/summary_results.csv`
+   - Training log in `results/logs/training.log`
+
+## 2024-04-07 00:30 EDT
+
+### Model Training Code Consolidation
+
+#### Changes Made
+1. Code Organization:
+   - Integrated batch training functionality into ModelTrainer class
+   - Removed redundant run_training.py script
+   - Added static method for batch training
+   - Improved code maintainability
+
+2. Functionality Improvements:
+   - Added comprehensive logging
+   - Enhanced error handling
+   - Improved results collection
+   - Better model persistence
+
+3. Training Process:
+   - Maintained all training combinations
+   - Preserved ternary classification skip for 10s30s
+   - Enhanced results summary generation
+   - Improved file organization
+
+## 2025-04-06 19:40
+- Fix: Updated model saving directory from `models/` to `results/model_pickles/` to align with repository structure guidelines
+- Fix: Consolidated model and results directories under `results/` for better organization
+
+## 2025-04-06 19:45
+- Fix: Confirmed removal of redundant `models/` directory
+- Fix: Verified all model saving operations now use `results/model_pickles/` directory
+- Fix: Ensured consistent model storage location across the codebase
+
+## 2024-04-03
+### Feature Analysis
+- Feat(analysis): Execute comprehensive feature analysis
+  - Running feature_analysis.py to analyze all targets
+  - Computing feature importance using Random Forest
+  - Analyzing feature correlations and redundancies
+  - Generating detailed analysis reports
+  - Results will be saved in results/feature_analysis/
+
+### Feature Analysis Results
+- Feat(analysis): Documented detailed feature counts
+  - 2s10s Spread:
+    * Next Day: 310 features
+    * Direction: 284 features
+    * Ternary: 301 features
+  
+  - 5s30s Spread:
+    * Next Day: 315 features
+    * Direction: 299 features
+    * Ternary: 298 features
+  
+  - 2s5s Spread:
+    * Next Day: 315 features
+    * Direction: 284 features
+    * Ternary: 296 features
+  
+  - 10s30s Spread:
+    * Next Day: 87 features
+    * Direction: 87 features
+    * Ternary: 0 features (no meaningful classification)
+  
+  - 3m10y Spread:
+    * Next Day: 88 features
+    * Direction: 87 features
+    * Ternary: 21 features
+
+### Feature Analysis
+- Feat(analysis): Completed comprehensive feature analysis
+  - Overall Feature Set:
+    * Total Features: 853
+    * Redundant Features: 460
+    * Selected Features: ~284-315 (varies by spread)
+  
+  - 2s10s Spread Analysis:
+    * Next Day: 310 features, importance 0.0020-0.0023
+    * Direction: 284 features, importance 0.0024-0.0030
+    * Ternary: 301 features, importance 0.0023-0.0038
+  
+  - 5s30s Spread Analysis:
+    * Next Day: 315 features, importance 0.0020-0.0022
+  
+  - Key Findings:
+    * Calendar features consistently important
+    * Technical indicators show strong predictive power
+    * Spread-specific features prominent
+    * Feature importance scores generally low
+    * Significant redundancy in feature set

@@ -1,0 +1,65 @@
+,0
+0,Retail Sales
+1,Fed Funds Target Lower
+2,10Y-Fed Funds Spread
+3,2-Year_mom_126d
+4,5s30s_carry_return_21d
+5,10Y-2Y Treasury Spread
+6,2s10s_carry
+7,2s5s_carry_return_63d
+8,2-Year_mom_1d
+9,2-Year_ma_252d
+10,5s30s_carry_return_5d
+11,2s5s_level
+12,10s30s_carry_return_5d
+13,Corporate Profits
+14,Real GDP
+15,MZM Money Supply
+16,10s30s_level
+17,quarter
+18,2s5s_carry_return_21d
+19,Business Equipment Production
+20,3m10y_level
+21,Total Bank Credit
+22,2s5s_carry_return_5d
+23,Fed Funds Target Upper
+24,Wholesale Inventories
+25,Core CPI
+26,Real Retail Sales
+27,2-Year_mom_10d
+28,2-Year_ma_63d
+29,Consumer Confidence
+30,Federal Funds Rate
+31,M2 Money Supply
+32,2-Year_mom_21d
+33,2s10s_carry_return_21d
+34,5s30s_carry_return_63d
+35,2-Year_mom_252d
+36,DJIA Volatility Index
+37,2-Year_ma_21d
+38,3m10y_carry_return_21d
+39,2-Year_ma_10d
+40,10s30s_carry_return_63d
+41,3m10y_carry_return_5d
+42,Manufacturing Capacity Utilization
+43,Monetary Base
+44,5s30s_carry
+45,2s5s_carry
+46,3m10y_carry_return_63d
+47,PCE Price Index
+48,2-Year_ma_126d
+49,Building Permits
+50,month
+51,Core PCE Price Index
+52,3m10y_carry
+53,2-Year_ma_5d
+54,10s30s_carry
+55,2s10s_carry_return_5d
+56,Retail Inventories
+57,10Y-3M Treasury Spread
+58,PPI Final Demand
+59,2-Year_mom_5d
+60,S&P 500
+61,2-Year_mom_63d
+62,BBB Corporate Spread
+63,10s30s_carry_return_21d

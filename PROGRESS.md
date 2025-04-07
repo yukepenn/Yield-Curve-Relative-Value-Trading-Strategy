@@ -646,91 +646,145 @@ This document tracks the development progress, changes, findings, fixes, and bug
 ### Model Training Implementation
 
 #### Current Status
-1. Model Training Module:
-   - Implemented ModelTrainer class
-   - Added support for multiple model types
-   - Created walk-forward validation
-   - Set up logging and error handling
+1. Training Script:
+   - Created systematic training script
+   - Implemented comprehensive logging
+   - Added error handling
+   - Set up results storage
 
-2. Features Implemented:
-   - Automatic data loading and alignment
-   - Model type selection
-   - Performance metrics calculation
-   - Feature importance tracking
-   - Model persistence
+2. Training Scope:
+   - 5 spreads (2s10s, 5s30s, 2s5s, 10s30s, 3m10y)
+   - 3 prediction types (next_day, direction, ternary)
+   - 4 model types (ridge, lasso, rf, xgb)
+   - Total: 56 model combinations (excluding 10s30s ternary)
 
-3. Validation Strategy:
-   - Time series cross-validation
-   - Multiple validation splits
-   - Performance metrics tracking
-   - Feature importance analysis
+3. Output Structure:
+   - Model files in `results/model_pickles/`
+   - Training results in `results/model_training/`
+   - Summary results in CSV format
+   - Detailed logs in `results/logs/`
 
 #### Next Steps
-1. Model Training:
-   - Run initial model training
-   - Analyze performance metrics
-   - Compare model types
-   - Select best models per spread
+1. Run Initial Training:
+   - Execute training script
+   - Monitor training progress
+   - Analyze initial results
 
-2. Model Optimization:
-   - Implement hyperparameter tuning
-   - Add feature selection
-   - Optimize validation strategy
-   - Add ensemble methods
+2. Model Analysis:
+   - Compare model performance
+   - Identify best models per spread
+   - Analyze feature importance
 
-3. Documentation:
-   - Document model selection process
-   - Create performance reports
-   - Update model architecture
-   - Add usage examples
+3. Enhancement Planning:
+   - Plan hyperparameter tuning
+   - Design ensemble methods
+   - Prepare trading metrics
 
-## 2024-04-06 23:55 EDT
+## 2024-04-07 00:15 EDT
 
-### Enhanced Model Training Implementation
+### Model Training Implementation
 
 #### Current Status
-1. Model Type-Specific Features:
-   - Next Day Prediction:
-     * Feature scaling for linear models
-     * MSE metric tracking
-     * Prediction storage
-     * Enhanced persistence
-   
-   - Direction Prediction:
-     * Class imbalance handling
-     * ROC-AUC metric
-     * Probability calibration
-     * Enhanced storage
-   
-   - Ternary Classification:
-     * Multi-class support
-     * Class weights
-     * Probability tracking
-     * Enhanced metrics
+1. Training Script:
+   - Created systematic training script
+   - Implemented comprehensive logging
+   - Added error handling
+   - Set up results storage
 
-2. General Improvements:
-   - Feature scaling implementation
-   - Class weight calculation
-   - Enhanced data alignment
-   - Improved error handling
-   - Better model persistence
-   - Enhanced logging
+2. Training Scope:
+   - 5 spreads (2s10s, 5s30s, 2s5s, 10s30s, 3m10y)
+   - 3 prediction types (next_day, direction, ternary)
+   - 4 model types (ridge, lasso, rf, xgb)
+   - Total: 56 model combinations
+
+3. Output Structure:
+   - Model files in `results/model_pickles/`
+   - Training results in `results/model_training/`
+   - Summary results in CSV format
+   - Detailed logs in `results/logs/`
 
 #### Next Steps
-1. Model Training:
-   - Run initial training with enhanced features
-   - Analyze performance metrics
-   - Compare model types
-   - Select best models per spread
+1. Run Initial Training:
+   - Execute batch training
+   - Monitor training progress
+   - Analyze initial results
 
-2. Model Optimization:
-   - Implement hyperparameter tuning
-   - Add ensemble methods
-   - Optimize validation strategy
-   - Add trading metrics
+2. Model Analysis:
+   - Compare model performance
+   - Identify best models per spread
+   - Analyze feature importance
 
-3. Documentation:
-   - Document model selection process
-   - Create performance reports
-   - Update model architecture
-   - Add usage examples
+3. Enhancement Planning:
+   - Plan hyperparameter tuning
+   - Design ensemble methods
+   - Prepare trading metrics
+
+## 2025-04-06 19:40
+### Directory Structure Improvement
+- Fixed model saving location to follow repository guidelines
+- Models are now saved in `results/model_pickles/` instead of a separate `models/` directory
+- This change ensures better organization and consistency with the project structure
+
+### Next Steps
+1. Run feature engineering to generate processed data files
+2. Execute model training with the corrected directory structure
+3. Validate model performance and check saved artifacts
+
+## 2025-04-06 19:45
+### Directory Structure Cleanup
+- Verified removal of redundant `models/` directory
+- Confirmed all model saving operations use `results/model_pickles/`
+- Ensured consistent model storage location across the codebase
+
+### Next Steps
+1. Run feature engineering to generate processed data files
+2. Execute model training with the corrected directory structure
+3. Validate model performance and check saved artifacts
+
+## 2024-04-03
+- Comprehensive Feature Analysis Results:
+  - Overall Feature Set:
+    * Total Features: 853
+    * Redundant Features: 460
+    * Selected Features: ~284-315 (varies by spread)
+  
+  - 2s10s Spread Analysis:
+    * Next Day: 310 features, importance 0.0020-0.0023
+    * Direction: 284 features, importance 0.0024-0.0030
+    * Ternary: 301 features, importance 0.0023-0.0038
+  
+  - 5s30s Spread Analysis:
+    * Next Day: 315 features, importance 0.0020-0.0022
+  
+  - Key Findings:
+    * Calendar features consistently important
+    * Technical indicators show strong predictive power
+    * Spread-specific features prominent
+    * Feature importance scores generally low
+    * Significant redundancy in feature set
+
+- Detailed Feature Counts by Spread and Strategy:
+  - 2s10s Spread:
+    * Next Day: 310 features
+    * Direction: 284 features
+    * Ternary: 301 features
+  
+  - 5s30s Spread:
+    * Next Day: 315 features
+    * Direction: 299 features
+    * Ternary: 298 features
+  
+  - 2s5s Spread:
+    * Next Day: 315 features
+    * Direction: 284 features
+    * Ternary: 296 features
+  
+  - 10s30s Spread:
+    * Next Day: 87 features
+    * Direction: 87 features
+    * Ternary: 0 features (no meaningful classification)
+  
+  - 3m10y Spread:
+    * Next Day: 88 features
+    * Direction: 87 features
+    * Ternary: 21 features

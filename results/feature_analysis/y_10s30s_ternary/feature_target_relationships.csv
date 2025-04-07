@@ -1,0 +1,167 @@
+,feature,correlation,mutual_info
+19,2-Year_change_5d,,0.029920474268404718
+135,MZM Money Supply,,0.02607286051848856
+12,2-Year_change_1d,,0.02211003240115339
+114,AA Corporate Spread,,0.01864753366020988
+96,Interest on Reserve Balances,,0.017975690113357423
+41,2-Year_pct_change_63d,,0.013986209124277948
+152,10Y-3M Treasury Spread,,0.01290586395570692
+132,Corporate Profits,,0.012747114966169093
+40,2-Year_change_63d,,0.011949588812915302
+149,NASDAQ Volatility Index,,0.0118228069858759
+120,Real GDP,,0.011537525663552373
+95,Fed Funds Target Lower,,0.010352499167845863
+2,week_of_year,,0.010321780777097445
+140,Dollar Index,,0.010085142804482139
+138,S&P 500,,0.009508392781238051
+111,Aaa Corporate vs 10Y Treasury,,0.009299321267672411
+22,2-Year_dist_ma_5d,,0.009183513045933012
+26,2-Year_change_10d,,0.008878583090745629
+14,2-Year_ma_1d,,0.008490173139627188
+112,ICE BofA High Yield Spread,,0.008217656031875187
+1,day_of_month,,0.007970772302985374
+94,Fed Funds Target Upper,,0.007772674044918659
+159,Consumer Expectations,,0.007626774637747857
+141,WTI Crude Oil Price,,0.0075293677162733275
+37,2-Year_vol_21d,,0.007145418050022556
+109,PPI Finished Goods,,0.007119259968159319
+68,2s10s_level,,0.006540963689714019
+61,2-Year_rsi_14d,,0.0063594219865770185
+11,is_day_after_holiday,,0.006013942456728039
+57,2-Year_dist_ma_252d,,0.005508680151818268
+126,Durable Goods Orders,,0.005294688155585092
+36,2-Year_dist_ma_21d,,0.004904836916611366
+85,10s30s_carry_return_5d,,0.004864390712253197
+3,month,,0.004598922489519097
+108,PPI Final Demand,,0.004413792196464428
+17,2-Year_zscore_1d,,0.003908687047300852
+81,2s5s_carry_return_21d,,0.003857339910686264
+28,2-Year_ma_10d,,0.00383171540078564
+56,2-Year_ma_252d,,0.003606206093094144
+103,Core PCE Price Index,,0.0035945238854218076
+75,5s30s_carry_return_5d,,0.003299226143699485
+31,2-Year_zscore_10d,,0.003253292747119829
+47,2-Year_change_126d,,0.003154582878425849
+29,2-Year_dist_ma_10d,,0.00310758799044919
+137,Total Bank Credit,,0.0030708179140868097
+84,10s30s_carry,,0.002966824465935325
+160,Real Retail Sales,,0.0028235324314280774
+121,Industrial Production,,0.002793647229731633
+71,2s10s_carry_return_21d,,0.00264226660565825
+51,2-Year_vol_126d,,0.002370545213276287
+50,2-Year_dist_ma_126d,,0.0023471429175589975
+20,2-Year_pct_change_5d,,0.002324255954954779
+148,DJIA Volatility Index,,0.002297397877025098
+42,2-Year_ma_63d,,0.001954381908111813
+164,Nondurable Materials Production,,0.0018658830960891493
+98,Fed Balance Sheet,,0.0018264698048611194
+48,2-Year_pct_change_126d,,0.0018023792806101113
+54,2-Year_change_252d,,0.0014212724997761939
+161,Business Equipment Production,,0.0013623609028865502
+23,2-Year_vol_5d,,0.0013220573842840366
+162,Consumer Goods Production,,0.0011829617824936633
+91,3m10y_carry_return_21d,,0.00105045629147682
+76,5s30s_carry_return_21d,,0.0010096651702014015
+122,Consumer Sentiment,,0.0008282752786996639
+144,CNY/USD Exchange Rate,,0.000717304464352253
+129,Total Capacity Utilization,,0.0006386687116926026
+82,2s5s_carry_return_63d,,0.0005895196962910632
+45,2-Year_zscore_63d,,0.0005088028009900825
+5,year,,0.0005006458428482574
+43,2-Year_dist_ma_63d,,0.0004398095106168398
+7,is_quarter_end,,0.0004279099945065923
+118,Nonfarm Payrolls,,0.00020382794695450457
+77,5s30s_carry_return_63d,,0.0001763824823921567
+92,3m10y_carry_return_63d,,0.0001759652495483266
+53,2-Year_mom_126d,,0.00014750989441836282
+39,2-Year_mom_21d,,0.00011731268207704204
+128,Manufacturing Capacity Utilization,,0.00010447303795579899
+163,Durable Materials Production,,5.1269981787172014e-05
+59,2-Year_zscore_252d,,4.8063748868898415e-05
+113,BBB Corporate Spread,,0.0
+117,Unemployment Rate,,0.0
+116,CMBS Spread,,0.0
+158,Consumer Confidence,,0.0
+157,Leading Index,,0.0
+156,NBER Recession Indicator,,0.0
+115,A Corporate Spread,,0.0
+119,Initial Jobless Claims,,0.0
+110,Baa Corporate vs 10Y Treasury,,0.0
+155,TED Spread,,0.0
+151,Brazil VIX,,0.0
+123,Housing Starts,,0.0
+131,Wholesale Inventories,,0.0
+139,CBOE VIX,,0.0
+142,USD/EUR Exchange Rate,,0.0
+143,JPY/USD Exchange Rate,,0.0
+136,Monetary Base,,0.0
+134,M1 Money Supply,,0.0
+133,M2 Money Supply,,0.0
+145,Gold VIX,,0.0
+130,Retail Inventories,,0.0
+124,Building Permits,,0.0
+146,Oil VIX,,0.0
+127,Manufacturing Production,,0.0
+147,Treasury VIX,,0.0
+125,Retail Sales,,0.0
+150,Emerging Markets VIX,,0.0
+153,10Y-2Y Treasury Spread,,0.0
+154,10Y-Fed Funds Spread,,0.0
+0,day_of_week,,0.0
+83,10s30s_level,,0.0
+107,10Y TIPS Rate,,0.0
+106,5Y Forward Inflation,,0.0
+58,2-Year_vol_252d,,0.0
+55,2-Year_pct_change_252d,,0.0
+52,2-Year_zscore_126d,,0.0
+49,2-Year_ma_126d,,0.0
+46,2-Year_mom_63d,,0.0
+44,2-Year_vol_63d,,0.0
+38,2-Year_zscore_21d,,0.0
+35,2-Year_ma_21d,,0.0
+34,2-Year_pct_change_21d,,0.0
+33,2-Year_change_21d,,0.0
+32,2-Year_mom_10d,,0.0
+30,2-Year_vol_10d,,0.0
+27,2-Year_pct_change_10d,,0.0
+25,2-Year_mom_5d,,0.0
+24,2-Year_zscore_5d,,0.0
+21,2-Year_ma_5d,,0.0
+18,2-Year_mom_1d,,0.0
+16,2-Year_vol_1d,,0.0
+15,2-Year_dist_ma_1d,,0.0
+13,2-Year_pct_change_1d,,0.0
+10,is_day_before_holiday,,0.0
+9,is_holiday,,0.0
+8,is_year_end,,0.0
+6,is_month_end,,0.0
+4,quarter,,0.0
+60,2-Year_mom_252d,,0.0
+62,yield_pc1_level,,0.0
+63,yield_pc2_slope,,0.0
+87,10s30s_carry_return_63d,,0.0
+105,10Y Breakeven Inflation,,0.0
+104,5Y Breakeven Inflation,,0.0
+102,PCE Price Index,,0.0
+101,Core CPI,,0.0
+100,CPI All Items,,0.0
+99,Commercial and Industrial Loans,,0.0
+97,Reverse Repo Rate,,0.0
+93,Federal Funds Rate,,0.0
+90,3m10y_carry_return_5d,,0.0
+89,3m10y_carry,,0.0
+88,3m10y_level,,0.0
+86,10s30s_carry_return_21d,,0.0
+64,yield_pc3_curvature,,0.0
+80,2s5s_carry_return_5d,,0.0
+79,2s5s_carry,,0.0
+78,2s5s_level,,0.0
+74,5s30s_carry,,0.0
+73,5s30s_level,,0.0
+72,2s10s_carry_return_63d,,0.0
+70,2s10s_carry_return_5d,,0.0
+69,2s10s_carry,,0.0
+67,yield_pc3_var_ratio,,0.0
+66,yield_pc2_var_ratio,,0.0
+65,yield_pc1_var_ratio,,0.0
+165,Final Products Production,,0.0
