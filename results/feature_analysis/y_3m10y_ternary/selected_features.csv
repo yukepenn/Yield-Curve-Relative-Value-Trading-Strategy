@@ -1,0 +1,22 @@
+,0
+0,USD/EUR Exchange Rate
+1,yield_pc2_slope
+2,day_of_week
+3,Oil VIX
+4,day_of_month
+5,yield_pc3_curvature
+6,2s10s_level
+7,5Y Breakeven Inflation
+8,is_holiday
+9,2-Year_rsi_14d
+10,yield_pc1_level
+11,2-Year_change_5d
+12,Gold VIX
+13,2-Year_ma_1d
+14,CNY/USD Exchange Rate
+15,5s30s_level
+16,JPY/USD Exchange Rate
+17,TED Spread
+18,CBOE VIX
+19,week_of_year
+20,2-Year_vol_10d

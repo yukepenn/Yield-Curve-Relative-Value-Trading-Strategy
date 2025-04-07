@@ -1,0 +1,167 @@
+,feature,importance,mutual_info
+14,2-Year_ma_1d,0.09733992806496397,0.0
+62,yield_pc1_level,0.09681301360471435,0.0
+63,yield_pc2_slope,0.09555033724330059,0.0
+69,2s10s_carry,0.07468204548187414,0.0
+83,10s30s_level,0.07395678594397145,0.0
+68,2s10s_level,0.05708811792726045,0.0
+2,week_of_year,0.050845936766953315,0.0
+21,2-Year_ma_5d,0.04391178717457198,0.0
+73,5s30s_level,0.043878375624381696,0.0
+79,2s5s_carry,0.039456119016849214,0.0
+74,5s30s_carry,0.033694072001502644,0.0
+78,2s5s_level,0.03091958701968138,0.0
+84,10s30s_carry,0.030499466461216377,0.0
+89,3m10y_carry,0.029870718530783942,0.0
+1,day_of_month,0.02635631717542726,0.0
+28,2-Year_ma_10d,0.02507596661002764,0.0
+80,2s5s_carry_return_5d,0.018910347515345472,0.0
+9,is_holiday,0.01543300010687736,0.0
+104,5Y Breakeven Inflation,0.014906875103233814,0.0
+81,2s5s_carry_return_21d,0.014757806352201476,0.0
+42,2-Year_ma_63d,0.01387834857162087,0.0
+64,yield_pc3_curvature,0.010219457914433318,0.0
+61,2-Year_rsi_14d,0.008639097524170362,0.00025131942699119225
+30,2-Year_vol_10d,0.006201795701175765,0.0
+70,2s10s_carry_return_5d,0.005857744526982837,0.0
+155,TED Spread,0.00431448899450124,0.0
+135,MZM Money Supply,0.004131847831864338,0.0
+32,2-Year_mom_10d,0.00356178743912083,0.0
+144,CNY/USD Exchange Rate,0.0028413851943257526,0.0
+142,USD/EUR Exchange Rate,0.0026786935872146517,0.0
+0,day_of_week,0.002566575017774176,0.00012565971349531857
+145,Gold VIX,0.0024745828451111633,0.0
+143,JPY/USD Exchange Rate,0.0024432627067043342,0.0
+130,Retail Inventories,0.002334855758192014,0.0
+35,2-Year_ma_21d,0.0023263949522298838,0.0
+146,Oil VIX,0.002135330400186405,0.0
+139,CBOE VIX,0.0016725101866768698,0.0
+19,2-Year_change_5d,0.0010851328200148177,0.0
+106,5Y Forward Inflation,0.0009068557101468009,0.0
+90,3m10y_carry_return_5d,0.0008788826148479969,0.0
+113,BBB Corporate Spread,0.0007767163243249171,0.0
+110,Baa Corporate vs 10Y Treasury,0.0007412237645553093,0.0
+111,Aaa Corporate vs 10Y Treasury,0.0007412237645553093,0.0
+133,M2 Money Supply,0.0007088175143308918,0.0
+134,M1 Money Supply,0.0006517825139359186,0.0
+24,2-Year_zscore_5d,0.0006211197959680822,0.0
+131,Wholesale Inventories,0.0006031971432290847,0.0
+37,2-Year_vol_21d,6.02851566674931e-05,0.0
+112,ICE BofA High Yield Spread,0.0,0.0
+123,Housing Starts,0.0,0.0
+129,Total Capacity Utilization,0.0,0.0
+103,Core PCE Price Index,0.0,0.0
+128,Manufacturing Capacity Utilization,0.0,0.0
+127,Manufacturing Production,0.0,0.0
+126,Durable Goods Orders,0.0,0.0
+125,Retail Sales,0.0,0.0
+124,Building Permits,0.0,0.0
+7,is_quarter_end,0.0,0.0
+122,Consumer Sentiment,0.0,0.0
+109,PPI Finished Goods,0.0,0.0
+121,Industrial Production,0.0,0.0
+105,10Y Breakeven Inflation,0.0,0.0
+120,Real GDP,0.0,0.0
+107,10Y TIPS Rate,0.0,0.0
+119,Initial Jobless Claims,0.0,0.0
+108,PPI Final Demand,0.0,0.0
+117,Unemployment Rate,0.0,0.0
+116,CMBS Spread,0.0,0.0
+115,A Corporate Spread,0.0,0.0
+114,AA Corporate Spread,0.0,0.0
+118,Nonfarm Payrolls,0.0,0.0
+31,2-Year_zscore_10d,0.0,0.0
+132,Corporate Profits,0.0,0.0
+152,10Y-3M Treasury Spread,0.0,0.0
+164,Nondurable Materials Production,0.0,0.0
+163,Durable Materials Production,0.0,0.0
+162,Consumer Goods Production,0.0,0.0
+161,Business Equipment Production,0.0,0.0
+160,Real Retail Sales,0.0,0.0
+159,Consumer Expectations,0.0,0.0
+158,Consumer Confidence,0.0,0.0
+157,Leading Index,0.0,0.00012565971349531857
+156,NBER Recession Indicator,0.0,0.00037697914048706593
+3,month,0.0,0.0
+154,10Y-Fed Funds Spread,0.0,0.0
+153,10Y-2Y Treasury Spread,0.0,0.0
+151,Brazil VIX,0.0,0.0
+101,Core CPI,0.0,0.0
+150,Emerging Markets VIX,0.0,0.0
+149,NASDAQ Volatility Index,0.0,0.0
+148,DJIA Volatility Index,0.0,0.0
+147,Treasury VIX,0.0,0.0
+4,quarter,0.0,0.00025131942699119225
+5,year,0.0,0.0
+141,WTI Crude Oil Price,0.0,0.0
+140,Dollar Index,0.0,0.0005026388539829396
+138,S&P 500,0.0,0.00025131942699119225
+137,Total Bank Credit,0.0,0.0
+136,Monetary Base,0.0,0.0
+6,is_month_end,0.0,0.00012565971349531857
+102,PCE Price Index,0.0,0.0
+98,Fed Balance Sheet,0.0,0.0
+100,CPI All Items,0.0,0.0
+99,Commercial and Industrial Loans,0.0,0.00025131942699119225
+23,2-Year_vol_5d,0.0,0.0
+25,2-Year_mom_5d,0.0,0.0
+26,2-Year_change_10d,0.0,0.0
+60,2-Year_mom_252d,0.0,0.0
+59,2-Year_zscore_252d,0.0,0.0
+58,2-Year_vol_252d,0.0,0.0
+57,2-Year_dist_ma_252d,0.0,0.0
+56,2-Year_ma_252d,0.0,0.0
+55,2-Year_pct_change_252d,0.0,0.0
+54,2-Year_change_252d,0.0,0.0
+53,2-Year_mom_126d,0.0,0.0
+52,2-Year_zscore_126d,0.0,0.0
+51,2-Year_vol_126d,0.0,0.0
+50,2-Year_dist_ma_126d,0.0,0.0
+49,2-Year_ma_126d,0.0,0.0
+48,2-Year_pct_change_126d,0.0,0.0
+47,2-Year_change_126d,0.0,0.0
+46,2-Year_mom_63d,0.0,0.0
+45,2-Year_zscore_63d,0.0,0.0
+44,2-Year_vol_63d,0.0,0.0
+43,2-Year_dist_ma_63d,0.0,0.0
+27,2-Year_pct_change_10d,0.0,0.0
+41,2-Year_pct_change_63d,0.0,0.0
+40,2-Year_change_63d,0.0,0.0
+39,2-Year_mom_21d,0.0,0.0
+38,2-Year_zscore_21d,0.0,0.0
+36,2-Year_dist_ma_21d,0.0,0.0
+34,2-Year_pct_change_21d,0.0,0.0
+33,2-Year_change_21d,0.0,0.0
+65,yield_pc1_var_ratio,0.0,0.0
+66,yield_pc2_var_ratio,0.0,0.0
+67,yield_pc3_var_ratio,0.0,0.0
+10,is_day_before_holiday,0.0,0.00037697914048706593
+29,2-Year_dist_ma_10d,0.0,0.0
+97,Reverse Repo Rate,0.0,0.0
+96,Interest on Reserve Balances,0.0,0.00037697914048706593
+95,Fed Funds Target Lower,0.0,0.00025131942699119225
+94,Fed Funds Target Upper,0.0,0.00012565971349531857
+93,Federal Funds Rate,0.0,0.0
+92,3m10y_carry_return_63d,0.0,0.0
+91,3m10y_carry_return_21d,0.0,0.0
+8,is_year_end,0.0,0.0
+88,3m10y_level,0.0,0.0
+87,10s30s_carry_return_63d,0.0,0.0
+86,10s30s_carry_return_21d,0.0,0.0
+85,10s30s_carry_return_5d,0.0,0.0
+11,is_day_after_holiday,0.0,0.0
+22,2-Year_dist_ma_5d,0.0,0.0
+82,2s5s_carry_return_63d,0.0,0.0
+12,2-Year_change_1d,0.0,0.0
+13,2-Year_pct_change_1d,0.0,0.0
+15,2-Year_dist_ma_1d,0.0,0.0
+16,2-Year_vol_1d,0.0,0.0
+77,5s30s_carry_return_63d,0.0,0.0
+76,5s30s_carry_return_21d,0.0,0.0
+75,5s30s_carry_return_5d,0.0,0.0
+17,2-Year_zscore_1d,0.0,0.0
+18,2-Year_mom_1d,0.0,0.0
+72,2s10s_carry_return_63d,0.0,0.0
+71,2s10s_carry_return_21d,0.0,0.0
+20,2-Year_pct_change_5d,0.0,0.0
+165,Final Products Production,0.0,0.0

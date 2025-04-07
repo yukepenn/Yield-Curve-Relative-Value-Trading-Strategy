@@ -47,182 +47,356 @@ class FeatureEngineer:
         self.macro_data = macro_data
         self.features = pd.DataFrame()
         
-    def _compute_calendar_features(self, dates: pd.DatetimeIndex) -> pd.DataFrame:
+    def _compute_calendar_features(self) -> None:
         """
-        Compute calendar-based features.
-        
-        Args:
-            dates (pd.DatetimeIndex): DateTimeIndex of the data
-            
-        Returns:
-            pd.DataFrame: Calendar features
+        Compute calendar-based features and add them to self.features.
         """
         logger.info("Computing calendar features...")
         
         # Ensure dates have frequency set
-        dates = pd.DatetimeIndex(dates).to_period('D').to_timestamp('D')
+        dates = pd.DatetimeIndex(self.treasury_data.index).to_period('D').to_timestamp('D')
         
-        calendar_features = pd.DataFrame(index=dates)
-        calendar_features['day_of_week'] = dates.dayofweek
-        calendar_features['day_of_month'] = dates.day
-        calendar_features['week_of_year'] = dates.isocalendar().week
-        calendar_features['month'] = dates.month
-        calendar_features['quarter'] = dates.quarter
-        calendar_features['year'] = dates.year
+        # Add calendar features
+        self.features['day_of_week'] = dates.dayofweek
+        self.features['day_of_month'] = dates.day
+        self.features['week_of_year'] = dates.isocalendar().week
+        self.features['month'] = dates.month
+        self.features['quarter'] = dates.quarter
+        self.features['year'] = dates.year
         
         # Compute end-of-period indicators
-        calendar_features['is_month_end'] = dates.month != dates.shift(1).month
-        calendar_features['is_quarter_end'] = dates.quarter != dates.shift(1).quarter
-        calendar_features['is_year_end'] = dates.year != dates.shift(1).year
+        self.features['is_month_end'] = dates.month != dates.shift(1).month
+        self.features['is_quarter_end'] = dates.quarter != dates.shift(1).quarter
+        self.features['is_year_end'] = dates.year != dates.shift(1).year
         
         # Add holiday features
         us_holidays = holidays.US()
-        calendar_features['is_holiday'] = [date in us_holidays for date in dates]
-        calendar_features['is_day_before_holiday'] = [date + pd.Timedelta(days=1) in us_holidays for date in dates]
-        calendar_features['is_day_after_holiday'] = [date - pd.Timedelta(days=1) in us_holidays for date in dates]
-        
-        return calendar_features
+        self.features['is_holiday'] = [date in us_holidays for date in dates]
+        self.features['is_day_before_holiday'] = [date + pd.Timedelta(days=1) in us_holidays for date in dates]
+        self.features['is_day_after_holiday'] = [date - pd.Timedelta(days=1) in us_holidays for date in dates]
 
-    def _compute_trend_features(self, data: pd.DataFrame, col_name: str) -> pd.DataFrame:
-        """Compute trend and momentum features for a given series."""
-        features = pd.DataFrame(index=data.index)
+    def _compute_trend_features(self, col: str) -> pd.DataFrame:
+        """Compute trend features for a given column.
         
-        # Returns over different horizons
-        for period in LOOKBACK_PERIODS:
-            # Level changes
-            features[f'{col_name}_change_{period}d'] = data[col_name].diff(period)
+        Args:
+            col: Column name to compute features for
             
-            # Percentage changes
-            features[f'{col_name}_pct_change_{period}d'] = data[col_name].pct_change(period)
+        Returns:
+            DataFrame containing trend features
+        """
+        try:
+            if col not in self.treasury_data.columns:
+                logger.warning(f"Column {col} not found in treasury data")
+                return pd.DataFrame()
             
-            # Moving averages
-            features[f'{col_name}_ma_{period}d'] = data[col_name].rolling(window=period).mean()
+            # Get the series and ensure it's numeric
+            series = pd.to_numeric(self.treasury_data[col], errors='coerce')
             
-            # Distance from moving average
-            features[f'{col_name}_dist_ma_{period}d'] = data[col_name] - features[f'{col_name}_ma_{period}d']
+            # Handle NaN and infinite values
+            series = series.replace([np.inf, -np.inf], np.nan)
+            series = series.ffill(limit=5).bfill(limit=5)
             
-            # Volatility
-            features[f'{col_name}_vol_{period}d'] = data[col_name].rolling(window=period).std()
+            # Initialize features DataFrame
+            features = pd.DataFrame(index=series.index)
             
-            # Z-score
-            features[f'{col_name}_zscore_{period}d'] = (
-                (data[col_name] - features[f'{col_name}_ma_{period}d']) / 
-                features[f'{col_name}_vol_{period}d']
-            )
+            # Compute features for each lookback period
+            for lookback in LOOKBACK_PERIODS:
+                # Level change
+                features[f'{col}_change_{lookback}d'] = series - series.shift(lookback)
+                
+                # Percentage change (with clipping to handle extreme values)
+                pct_change = series.pct_change(lookback)
+                features[f'{col}_pct_change_{lookback}d'] = pct_change.clip(-1, 1)
+                
+                # Moving average
+                ma = series.rolling(lookback).mean()
+                features[f'{col}_ma_{lookback}d'] = ma
+                
+                # Distance from moving average
+                features[f'{col}_dist_ma_{lookback}d'] = series - ma
+                
+                # Volatility
+                features[f'{col}_vol_{lookback}d'] = series.rolling(lookback).std()
+                
+                # Z-score
+                zscore = (series - ma) / features[f'{col}_vol_{lookback}d']
+                features[f'{col}_zscore_{lookback}d'] = zscore.replace([np.inf, -np.inf], np.nan)
+                
+                # Momentum
+                features[f'{col}_momentum_{lookback}d'] = series.diff(lookback)
+                
+                # RSI
+                delta = series.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(lookback).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(lookback).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs))
+                features[f'{col}_rsi_{lookback}d'] = rsi.replace([np.inf, -np.inf], 50)
             
-            # Momentum (rate of change)
-            features[f'{col_name}_mom_{period}d'] = (
-                data[col_name].diff(period) / period
-            )
-        
-        # RSI
-        delta = data[col_name].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        features[f'{col_name}_rsi_14d'] = 100 - (100 / (1 + rs))
-        
-        return features
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error computing trend features for {col}: {str(e)}")
+            return pd.DataFrame()
 
     def _compute_yield_curve_features(self) -> pd.DataFrame:
-        """Compute yield curve shape features using PCA."""
-        # Select key tenors for PCA
-        key_tenors = ['2-Year', '5-Year', '10-Year', '30-Year']
-        yields_for_pca = self.treasury_data[key_tenors]
-        
-        # Standardize yields
-        yields_std = (yields_for_pca - yields_for_pca.mean()) / yields_for_pca.std()
-        
-        # Compute PCA
-        pca = PCA(n_components=3)
-        pca_features = pca.fit_transform(yields_std)
-        
-        # Create DataFrame with PCA components
-        pca_df = pd.DataFrame(
-            pca_features,
-            index=yields_for_pca.index,
-            columns=['yield_pc1_level', 'yield_pc2_slope', 'yield_pc3_curvature']
-        )
-        
-        # Add explained variance as features
-        for i, ratio in enumerate(pca.explained_variance_ratio_):
-            pca_df[f'yield_pc{i+1}_var_ratio'] = ratio
-            
-        return pca_df
-
-    def _compute_carry_features(self) -> pd.DataFrame:
-        """Compute carry and roll-down features."""
-        features = pd.DataFrame(index=self.treasury_data.index)
-        
-        for spread_name, (short_tenor, long_tenor) in SPREADS.items():
-            # Current spread level
-            spread = self.treasury_data[long_tenor] - self.treasury_data[short_tenor]
-            features[f'{spread_name}_level'] = spread
-            
-            # Carry (approximated by current spread)
-            features[f'{spread_name}_carry'] = spread / BUSINESS_DAYS_PER_YEAR
-            
-            # Historical carry performance
-            for period in [5, 21, 63]:  # 1w, 1m, 3m
-                features[f'{spread_name}_carry_return_{period}d'] = (
-                    features[f'{spread_name}_carry'].rolling(period).sum()
-                )
-        
-        return features
-
-    def _compute_targets(self) -> pd.DataFrame:
-        """Compute regression and classification targets."""
-        targets = pd.DataFrame(index=self.treasury_data.index)
-        
-        for spread_name, (short_tenor, long_tenor) in SPREADS.items():
-            # Current spread
-            spread = self.treasury_data[long_tenor] - self.treasury_data[short_tenor]
-            
-            # Regression target: next day spread change in basis points
-            targets[f'y_{spread_name}_next_day'] = spread.shift(-1) - spread
-            
-            # Classification targets
-            # Binary direction (+1 steepener, -1 flattener)
-            targets[f'y_{spread_name}_direction'] = np.sign(targets[f'y_{spread_name}_next_day'])
-            
-            # Ternary with noise threshold (±1 bp)
-            targets[f'y_{spread_name}_ternary'] = pd.cut(
-                targets[f'y_{spread_name}_next_day'],
-                bins=[-np.inf, -1, 1, np.inf],
-                labels=[-1, 0, 1]
-            )
-        
-        return targets
-
-    def create_features(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Create all features and target variables.
+        """Compute yield curve shape features using PCA.
         
         Returns:
-            Tuple[pd.DataFrame, pd.DataFrame]: Features and targets DataFrames
+            pd.DataFrame: PCA features for the yield curve
         """
-        logger.info("Starting feature engineering process...")
+        try:
+            # Select key tenors for PCA
+            key_tenors = ['2-Year', '5-Year', '10-Year', '30-Year']
+            yields_for_pca = self.treasury_data[key_tenors].copy()
+            
+            # Handle NaN values
+            yields_for_pca = yields_for_pca.replace([np.inf, -np.inf], np.nan)
+            yields_for_pca = yields_for_pca.ffill(limit=5).bfill(limit=5)
+            
+            # Drop any remaining NaN rows
+            yields_for_pca = yields_for_pca.dropna()
+            
+            if len(yields_for_pca) == 0:
+                logger.warning("No valid data for PCA after cleaning")
+                return pd.DataFrame(index=self.treasury_data.index)
+            
+            # Standardize yields
+            yields_std = (yields_for_pca - yields_for_pca.mean()) / yields_for_pca.std()
+            
+            # Compute PCA
+            pca = PCA(n_components=3)
+            pca_features = pca.fit_transform(yields_std)
+            
+            # Create DataFrame with PCA components
+            pca_df = pd.DataFrame(
+                pca_features,
+                index=yields_for_pca.index,
+                columns=['yield_pc1_level', 'yield_pc2_slope', 'yield_pc3_curvature']
+            )
+            
+            # Add explained variance as features
+            for i, ratio in enumerate(pca.explained_variance_ratio_):
+                pca_df[f'yield_pc{i+1}_var_ratio'] = ratio
+            
+            # Reindex to match original data
+            pca_df = pca_df.reindex(self.treasury_data.index)
+            
+            # Forward fill and backward fill NaN values
+            pca_df = pca_df.ffill(limit=5).bfill(limit=5)
+            
+            return pca_df
+            
+        except Exception as e:
+            logger.error(f"Error computing yield curve features: {str(e)}")
+            return pd.DataFrame(index=self.treasury_data.index)
+
+    def _compute_carry_features(self) -> pd.DataFrame:
+        """Compute carry and roll-down features.
         
-        # Initialize features DataFrame with index from treasury data
-        self.features = pd.DataFrame(index=self.treasury_data.index)
+        Returns:
+            pd.DataFrame: Carry and roll-down features
+        """
+        try:
+            features = pd.DataFrame(index=self.treasury_data.index)
+            
+            for spread_name, (short_tenor, long_tenor) in SPREADS.items():
+                try:
+                    # Get clean yield data
+                    short_yield = self.treasury_data[short_tenor].replace([np.inf, -np.inf], np.nan)
+                    long_yield = self.treasury_data[long_tenor].replace([np.inf, -np.inf], np.nan)
+                    
+                    # Forward and backward fill NaN values
+                    short_yield = short_yield.ffill(limit=5).bfill(limit=5)
+                    long_yield = long_yield.ffill(limit=5).bfill(limit=5)
+                    
+                    # Current spread level
+                    spread = long_yield - short_yield
+                    features[f'{spread_name}_level'] = spread
+                    
+                    # Carry (approximated by current spread)
+                    carry = spread / BUSINESS_DAYS_PER_YEAR
+                    features[f'{spread_name}_carry'] = carry
+                    
+                    # Historical carry performance
+                    for period in [5, 21, 63]:  # 1w, 1m, 3m
+                        carry_return = carry.rolling(period).sum()
+                        features[f'{spread_name}_carry_return_{period}d'] = carry_return
+                        
+                except Exception as e:
+                    logger.error(f"Error computing carry features for {spread_name}: {str(e)}")
+                    continue
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error computing carry features: {str(e)}")
+            return pd.DataFrame(index=self.treasury_data.index)
+
+    def _compute_targets(self) -> pd.DataFrame:
+        """
+        Compute regression and classification targets.
         
-        # Add different types of features
-        self.features = pd.concat([self.features, self._compute_calendar_features(self.treasury_data.index)], axis=1)
-        self.features = pd.concat([self.features, self._compute_trend_features(self.treasury_data, '2-Year')], axis=1)
-        self.features = pd.concat([self.features, self._compute_yield_curve_features()], axis=1)
-        self.features = pd.concat([self.features, self._compute_carry_features()], axis=1)
-        self.features = pd.concat([self.features, self.macro_data], axis=1)
+        Returns:
+            pd.DataFrame: Target variables
+        """
+        try:
+            targets = pd.DataFrame(index=self.treasury_data.index)
+            
+            for spread_name, (short_tenor, long_tenor) in SPREADS.items():
+                # Current spread
+                spread = self.treasury_data[long_tenor] - self.treasury_data[short_tenor]
+                spread = spread.replace([np.inf, -np.inf], np.nan).ffill(limit=5)
+                
+                # Next day spread change in basis points
+                next_day_change = spread.shift(-1) - spread
+                targets[f'y_{spread_name}_next_day'] = next_day_change * 100  # Convert to basis points
+                
+                # Binary classification target (up/down)
+                targets[f'y_{spread_name}_direction'] = (next_day_change > 0).astype(int)
+                
+                # Ternary classification target (up/flat/down)
+                threshold = 0.5  # basis points
+                ternary = pd.Series(1, index=spread.index)  # Default to flat (1)
+                ternary[next_day_change * 100 > threshold] = 2  # Up
+                ternary[next_day_change * 100 < -threshold] = 0  # Down
+                targets[f'y_{spread_name}_ternary'] = ternary
+                
+                # Log class distribution for classification targets
+                logger.info(f"Class distribution for y_{spread_name}_direction:")
+                direction_dist = targets[f'y_{spread_name}_direction'].value_counts(normalize=True)
+                for cls, pct in direction_dist.items():
+                    n_samples = (targets[f'y_{spread_name}_direction'] == cls).sum()
+                    logger.info(f"  Class {cls}: {n_samples} samples ({pct:.1%})")
+                    
+                logger.info(f"Class distribution for y_{spread_name}_ternary:")
+                ternary_dist = targets[f'y_{spread_name}_ternary'].value_counts(normalize=True)
+                for cls, pct in ternary_dist.items():
+                    n_samples = (targets[f'y_{spread_name}_ternary'] == cls).sum()
+                    logger.info(f"  Class {cls}: {n_samples} samples ({pct:.1%})")
+            
+            return targets
+            
+        except Exception as e:
+            logger.error(f"Error computing targets: {str(e)}")
+            return pd.DataFrame()
+
+    def create_features(self):
+        """Create features and targets from raw data.
         
-        # Compute target variables
-        self.targets = self._compute_targets()
-        
-        # Handle missing values
-        self.features = self.features.ffill().fillna(0)  # Forward fill then fill remaining NaNs with 0
-        self.targets = self.targets.ffill().fillna(0)    # Same for targets
-        
-        logger.info(f"Feature engineering complete. Created {self.features.shape[1]} features.")
-        
-        return self.features, self.targets
+        Returns:
+            tuple: (features, targets) DataFrames
+        """
+        try:
+            logger.info("Generating features and targets...")
+            
+            # Initialize features DataFrame with treasury data index
+            self.features = pd.DataFrame(index=self.treasury_data.index)
+            logger.info(f"Initialized features with shape: {self.features.shape}")
+            
+            # Compute calendar features
+            self._compute_calendar_features()
+            logger.info(f"After calendar features: {self.features.shape}")
+            
+            # Compute trend features for each treasury series
+            for col in self.treasury_data.columns:
+                trend_features = self._compute_trend_features(col)
+                if not trend_features.empty:
+                    self.features = pd.concat([self.features, trend_features], axis=1)
+                    logger.info(f"After trend features for {col}: {self.features.shape}")
+                else:
+                    logger.warning(f"No trend features generated for {col}")
+            
+            # Compute yield curve features
+            pca_features = self._compute_yield_curve_features()
+            if not pca_features.empty:
+                self.features = pd.concat([self.features, pca_features], axis=1)
+                logger.info(f"After PCA features: {self.features.shape}")
+            else:
+                logger.warning("No PCA features generated")
+            
+            # Compute carry features
+            carry_features = self._compute_carry_features()
+            if not carry_features.empty:
+                self.features = pd.concat([self.features, carry_features], axis=1)
+                logger.info(f"After carry features: {self.features.shape}")
+            else:
+                logger.warning("No carry features generated")
+            
+            # Compute targets
+            self.targets = self._compute_targets()
+            logger.info(f"After computing targets: {self.targets.shape}")
+            
+            # Validate and preprocess data
+            logger.info("Validating and preprocessing data...")
+            
+            # Replace infinite values with NaN
+            self.features = self.features.replace([np.inf, -np.inf], np.nan)
+            self.targets = self.targets.replace([np.inf, -np.inf], np.nan)
+            logger.info(f"After replacing infinities: {self.features.shape}")
+            
+            # Forward fill then backward fill NaN values
+            self.features = self.features.ffill(limit=5).bfill(limit=5)
+            self.targets = self.targets.ffill(limit=5).bfill(limit=5)
+            logger.info(f"After filling NaNs: {self.features.shape}")
+            
+            # Cap extreme values at 5 standard deviations
+            for col in self.features.columns:
+                if self.features[col].dtype in ['float64', 'float32', 'int64', 'int32']:
+                    mean = self.features[col].mean()
+                    std = self.features[col].std()
+                    if std > 0:  # Only cap if there's variation
+                        self.features[col] = self.features[col].clip(
+                            lower=mean - 5*std,
+                            upper=mean + 5*std
+                        )
+            logger.info(f"After capping extremes: {self.features.shape}")
+            
+            # Check for remaining NaN values
+            nan_cols = self.features.isna().sum()
+            if nan_cols.any():
+                logger.warning("Columns with NaN values:")
+                for col in nan_cols[nan_cols > 0].index:
+                    logger.warning(f"  {col}: {nan_cols[col]} NaN values")
+                    
+                # Drop columns with too many NaN values (>50%)
+                threshold = len(self.features) * 0.5
+                cols_to_drop = nan_cols[nan_cols > threshold].index
+                if len(cols_to_drop) > 0:
+                    logger.warning(f"Dropping {len(cols_to_drop)} columns with >50% NaN values")
+                    self.features = self.features.drop(columns=cols_to_drop)
+                
+                # Fill remaining NaN values with column means
+                self.features = self.features.fillna(self.features.mean())
+            
+            # Log final shapes
+            # Forward fill then backward fill NaN values
+            self.features = self.features.ffill(limit=5).bfill(limit=5)
+            self.targets = self.targets.ffill(limit=5).bfill(limit=5)
+            logger.info(f"After filling NaNs: {self.features.shape}")
+            
+            # Drop any remaining NaN values
+            valid_idx = ~self.features.isna().any(axis=1)
+            self.features = self.features[valid_idx]
+            self.targets = self.targets[valid_idx]
+            
+            # Log final shapes
+            logger.info(f"Final feature shape: {self.features.shape}")
+            logger.info(f"Final target shape: {self.targets.shape}")
+            
+            if len(self.features) > 0:
+                logger.info(f"Features date range: {self.features.index[0]} to {self.features.index[-1]}")
+                logger.info(f"Number of features: {self.features.shape[1]}")
+                # Log sample of feature names
+                logger.info(f"Sample feature names: {list(self.features.columns[:5])}")
+            else:
+                logger.warning("No features generated after preprocessing")
+            
+            return self.features, self.targets
+            
+        except Exception as e:
+            logger.error(f"Error in create_features: {str(e)}")
+            raise
 
     def save_processed_data(self) -> None:
         """Save processed data to CSV files."""
@@ -323,6 +497,31 @@ def main():
     logger.info("Loading raw data...")
     treasury_data = pd.read_csv(raw_dir / 'treasury_yields.csv', index_col=0, parse_dates=True)
     macro_data = pd.read_csv(raw_dir / 'macro_indicators.csv', index_col=0, parse_dates=True)
+    
+    # Clean raw data
+    logger.info("Cleaning raw data...")
+    
+    # Step 1: Replace NaN with 0
+    treasury_data = treasury_data.fillna(0)
+    macro_data = macro_data.fillna(0)
+    
+    # Step 2: Forward fill to handle missing values
+    treasury_data = treasury_data.ffill()
+    macro_data = macro_data.ffill()
+    
+    # Step 3: For any columns that start with 0, backfill to next available value
+    for col in treasury_data.columns:
+        if treasury_data[col].iloc[0] == 0:
+            treasury_data[col] = treasury_data[col].bfill()
+    
+    for col in macro_data.columns:
+        if macro_data[col].iloc[0] == 0:
+            macro_data[col] = macro_data[col].bfill()
+    
+    # Step 4: Replace any remaining 0s with NaN and forward fill
+    treasury_data = treasury_data.replace(0, np.nan).ffill()
+    macro_data = macro_data.replace(0, np.nan).ffill()
+    
     logger.info(f"Loaded data with shapes: Treasury={treasury_data.shape}, Macro={macro_data.shape}")
     
     # Initialize feature engineering
@@ -330,7 +529,6 @@ def main():
     feature_engineer = FeatureEngineer(treasury_data, macro_data)
     
     # Generate features and targets
-    logger.info("Generating features and targets...")
     features, targets = feature_engineer.create_features()
     
     # Save processed data

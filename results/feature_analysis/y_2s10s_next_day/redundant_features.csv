@@ -1,0 +1,461 @@
+,0
+0,30-Year_momentum_252d
+1,20-Year_zscore_252d
+2,3m10y Spread_rsi_63d
+3,6-Month_momentum_63d
+4,5s30s Spread_momentum_252d
+5,10-Year_zscore_63d
+6,7-Year_zscore_126d
+7,20-Year_ma_126d
+8,2-Year_momentum_21d
+9,2s5s Spread_momentum_252d
+10,1-Year_change_252d
+11,5-Year_ma_1d
+12,2s5s Spread_momentum_63d
+13,2-Year_momentum_1d
+14,7-Year_momentum_1d
+15,7-Year_dist_ma_126d
+16,6-Month_ma_1d
+17,10-Year_zscore_5d
+18,7-Year_momentum_252d
+19,20-Year_rsi_63d
+20,2s5s Spread_ma_126d
+21,2s10s Spread_momentum_63d
+22,3m10y Spread_rsi_126d
+23,10-Year_zscore_10d
+24,2s5s Spread_rsi_252d
+25,5-Year_dist_ma_5d
+26,6-Month_momentum_1d
+27,20-Year_ma_1d
+28,5-Year_change_126d
+29,30-Year_dist_ma_63d
+30,10-Year_vol_252d
+31,3m10y_carry_return_5d
+32,2-Year_vol_252d
+33,10-Year_rsi_126d
+34,20-Year_change_10d
+35,2-Year_ma_1d
+36,20-Year_zscore_10d
+37,3m10y Spread_momentum_21d
+38,30-Year_pct_change_63d
+39,2s5s Spread_ma_21d
+40,3-Year_vol_126d
+41,3-Month_momentum_1d
+42,30-Year_rsi_252d
+43,30-Year_vol_21d
+44,6-Month_change_63d
+45,2s5s Spread_rsi_126d
+46,3-Year_dist_ma_10d
+47,10-Year_change_21d
+48,3m10y Spread_ma_5d
+49,7-Year_vol_63d
+50,3-Year_ma_1d
+51,5-Year_change_252d
+52,7-Year_rsi_5d
+53,6-Month_rsi_126d
+54,7-Year_dist_ma_10d
+55,30-Year_vol_10d
+56,20-Year_zscore_126d
+57,30-Year_change_252d
+58,30-Year_dist_ma_21d
+59,2s5s Spread_ma_63d
+60,30-Year_dist_ma_126d
+61,3-Year_momentum_126d
+62,10-Year_dist_ma_126d
+63,20-Year_momentum_21d
+64,10s30s Spread_momentum_5d
+65,3-Year_ma_63d
+66,3-Year_change_5d
+67,10-Year_change_10d
+68,20-Year_change_21d
+69,7-Year_vol_252d
+70,7-Year_change_21d
+71,3-Month_ma_126d
+72,10s30s Spread_momentum_252d
+73,10s30s Spread_momentum_21d
+74,5-Year_momentum_21d
+75,10-Year_ma_5d
+76,1-Year_momentum_21d
+77,20-Year_pct_change_126d
+78,5s30s_carry_return_21d
+79,10s30s Spread_ma_21d
+80,5s30s Spread_momentum_10d
+81,5s30s Spread_momentum_21d
+82,1-Year_ma_126d
+83,10-Year_dist_ma_5d
+84,3-Year_vol_10d
+85,3-Year_momentum_21d
+86,7-Year_dist_ma_252d
+87,3m10y Spread_momentum_126d
+88,30-Year_dist_ma_5d
+89,5-Year_zscore_21d
+90,5s30s Spread_momentum_1d
+91,3m10y_carry
+92,2s5s Spread_ma_252d
+93,5-Year_momentum_63d
+94,7-Year_change_5d
+95,5-Year_momentum_126d
+96,10s30s Spread_momentum_1d
+97,3-Year_change_10d
+98,2s10s Spread_ma_63d
+99,2s10s Spread_momentum_5d
+100,10-Year_dist_ma_10d
+101,30-Year_zscore_126d
+102,20-Year_dist_ma_252d
+103,2s10s_level
+104,6-Month_vol_252d
+105,5s30s_level
+106,7-Year_momentum_63d
+107,2s10s Spread_momentum_126d
+108,5s30s Spread_rsi_126d
+109,7-Year_ma_5d
+110,1-Year_dist_ma_126d
+111,2s5s_carry_return_63d
+112,5s30s Spread_ma_63d
+113,10-Year_vol_126d
+114,2s10s Spread_ma_126d
+115,2s10s_carry
+116,2s10s Spread_rsi_252d
+117,2-Year_momentum_63d
+118,2s5s Spread_ma_5d
+119,7-Year_ma_1d
+120,30-Year_ma_21d
+121,20-Year_pct_change_252d
+122,2s5s Spread_momentum_10d
+123,30-Year_ma_5d
+124,3-Year_vol_63d
+125,quarter
+126,5-Year_ma_252d
+127,30-Year_ma_63d
+128,3m10y Spread_momentum_252d
+129,3m10y_carry_return_63d
+130,10-Year_zscore_126d
+131,2-Year_momentum_5d
+132,20-Year_rsi_10d
+133,20-Year_change_1d
+134,5-Year_ma_63d
+135,5-Year_change_63d
+136,7-Year_pct_change_5d
+137,7-Year_vol_126d
+138,2s10s Spread_ma_21d
+139,30-Year_momentum_10d
+140,3m10y_level
+141,2-Year_momentum_252d
+142,3m10y Spread_ma_126d
+143,6-Month_dist_ma_63d
+144,3-Year_change_21d
+145,6-Month_change_252d
+146,10-Year_dist_ma_252d
+147,10-Year_change_5d
+148,20-Year_zscore_5d
+149,7-Year_rsi_252d
+150,20-Year_ma_10d
+151,3m10y Spread_ma_10d
+152,20-Year_dist_ma_63d
+153,30-Year_zscore_10d
+154,1-Year_ma_1d
+155,10-Year_pct_change_5d
+156,7-Year_momentum_5d
+157,1-Year_ma_63d
+158,30-Year_ma_252d
+159,1-Year_momentum_5d
+160,2s10s_carry_return_21d
+161,3-Month_momentum_63d
+162,5-Year_ma_21d
+163,3-Month_ma_63d
+164,5-Year_dist_ma_10d
+165,20-Year_pct_change_63d
+166,7-Year_rsi_21d
+167,7-Year_ma_252d
+168,30-Year_momentum_5d
+169,2s10s Spread_momentum_1d
+170,7-Year_pct_change_252d
+171,5-Year_dist_ma_21d
+172,10-Year_momentum_5d
+173,10s30s Spread_ma_63d
+174,6-Month_ma_126d
+175,6-Month_ma_5d
+176,10s30s_level
+177,2-Year_dist_ma_252d
+178,7-Year_pct_change_10d
+179,10-Year_momentum_63d
+180,3-Year_ma_10d
+181,3-Year_zscore_63d
+182,20-Year_dist_ma_5d
+183,5-Year_ma_126d
+184,6-Month_ma_252d
+185,7-Year_change_63d
+186,10-Year_zscore_21d
+187,30-Year_change_21d
+188,3-Year_change_252d
+189,30-Year_rsi_126d
+190,30-Year_pct_change_21d
+191,3-Year_vol_252d
+192,5-Year_ma_5d
+193,30-Year_dist_ma_10d
+194,20-Year_rsi_252d
+195,10-Year_momentum_1d
+196,1-Year_ma_252d
+197,1-Year_momentum_126d
+198,7-Year_ma_21d
+199,10-Year_rsi_10d
+200,2-Year_ma_5d
+201,30-Year_rsi_63d
+202,3m10y Spread_momentum_63d
+203,20-Year_pct_change_10d
+204,5-Year_rsi_252d
+205,5-Year_rsi_63d
+206,30-Year_change_63d
+207,2s5s Spread_momentum_21d
+208,20-Year_pct_change_21d
+209,10s30s Spread_ma_10d
+210,5s30s_carry_return_5d
+211,20-Year_ma_21d
+212,7-Year_dist_ma_63d
+213,3-Year_change_126d
+214,3-Month_ma_21d
+215,6-Month_vol_63d
+216,30-Year_ma_126d
+217,5s30s Spread_ma_10d
+218,10-Year_ma_10d
+219,5-Year_change_5d
+220,2-Year_ma_63d
+221,7-Year_ma_10d
+222,3m10y Spread_ma_252d
+223,3m10y Spread_ma_63d
+224,2s10s_carry_return_5d
+225,10-Year_change_63d
+226,7-Year_zscore_21d
+227,3-Year_change_63d
+228,10-Year_ma_252d
+229,2s5s_carry_return_5d
+230,10-Year_change_1d
+231,10-Year_zscore_252d
+232,7-Year_change_1d
+233,7-Year_rsi_10d
+234,20-Year_rsi_21d
+235,5-Year_momentum_252d
+236,30-Year_momentum_21d
+237,5s30s Spread_ma_126d
+238,2-Year_rsi_252d
+239,5-Year_momentum_10d
+240,3-Year_vol_21d
+241,2s10s Spread_momentum_252d
+242,30-Year_momentum_63d
+243,3m10y Spread_rsi_252d
+244,10-Year_pct_change_1d
+245,3-Month_momentum_21d
+246,10-Year_rsi_63d
+247,7-Year_dist_ma_21d
+248,10s30s_carry_return_5d
+249,5-Year_dist_ma_126d
+250,5-Year_dist_ma_252d
+251,7-Year_momentum_126d
+252,7-Year_zscore_5d
+253,3m10y Spread_momentum_1d
+254,30-Year_pct_change_10d
+255,5s30s_carry
+256,10s30s Spread_ma_5d
+257,5-Year_dist_ma_63d
+258,10s30s Spread_ma_252d
+259,3-Month_ma_5d
+260,10s30s Spread_momentum_63d
+261,10-Year_rsi_252d
+262,1-Year_momentum_10d
+263,3-Year_ma_21d
+264,7-Year_rsi_126d
+265,1-Year_momentum_1d
+266,10s30s Spread_ma_126d
+267,2s5s Spread_ma_1d
+268,30-Year_change_5d
+269,7-Year_pct_change_126d
+270,7-Year_pct_change_63d
+271,5-Year_momentum_1d
+272,10-Year_vol_10d
+273,1-Year_ma_5d
+274,6-Month_dist_ma_252d
+275,2s5s Spread_momentum_5d
+276,6-Month_momentum_252d
+277,20-Year_rsi_5d
+278,2-Year_momentum_10d
+279,20-Year_momentum_63d
+280,30-Year_pct_change_252d
+281,2s10s Spread_momentum_10d
+282,5-Year_change_10d
+283,5-Year_ma_10d
+284,3m10y Spread_momentum_5d
+285,2s10s Spread_ma_5d
+286,3-Month_momentum_126d
+287,10-Year_pct_change_10d
+288,10s30s Spread_ma_1d
+289,6-Month_vol_126d
+290,10-Year_pct_change_252d
+291,20-Year_zscore_21d
+292,10-Year_dist_ma_21d
+293,20-Year_momentum_1d
+294,7-Year_vol_5d
+295,5s30s Spread_ma_252d
+296,5s30s Spread_ma_5d
+297,2-Year_ma_252d
+298,10-Year_pct_change_21d
+299,3-Year_ma_252d
+300,3-Month_dist_ma_63d
+301,1-Year_vol_252d
+302,2s10s_carry_return_63d
+303,5-Year_change_21d
+304,3-Month_momentum_252d
+305,7-Year_zscore_252d
+306,5s30s Spread_rsi_252d
+307,5-Year_rsi_126d
+308,30-Year_rsi_21d
+309,3-Year_rsi_126d
+310,20-Year_pct_change_5d
+311,7-Year_vol_10d
+312,20-Year_ma_252d
+313,20-Year_pct_change_1d
+314,10-Year_dist_ma_63d
+315,6-Month_rsi_252d
+316,10-Year_momentum_126d
+317,20-Year_change_252d
+318,3-Year_rsi_63d
+319,30-Year_dist_ma_252d
+320,6-Month_ma_10d
+321,30-Year_zscore_21d
+322,2s5s Spread_momentum_1d
+323,3-Month_momentum_10d
+324,10s30s Spread_momentum_126d
+325,20-Year_momentum_10d
+326,5s30s Spread_momentum_63d
+327,10-Year_rsi_5d
+328,3m10y Spread_ma_21d
+329,month
+330,5s30s Spread_ma_21d
+331,6-Month_dist_ma_126d
+332,10-Year_ma_1d
+333,10s30s Spread_rsi_252d
+334,2-Year_ma_126d
+335,20-Year_ma_63d
+336,20-Year_ma_5d
+337,30-Year_change_126d
+338,1-Year_vol_126d
+339,yield_pc1_level
+340,20-Year_zscore_63d
+341,5-Year_rsi_21d
+342,20-Year_vol_63d
+343,30-Year_vol_252d
+344,10-Year_change_126d
+345,3-Month_dist_ma_126d
+346,2-Year_ma_21d
+347,30-Year_rsi_10d
+348,20-Year_dist_ma_10d
+349,10-Year_ma_21d
+350,2s5s Spread_rsi_63d
+351,30-Year_zscore_252d
+352,7-Year_pct_change_1d
+353,3-Year_momentum_10d
+354,3-Year_dist_ma_63d
+355,3-Year_momentum_63d
+356,6-Month_change_126d
+357,1-Year_change_126d
+358,3-Year_ma_5d
+359,20-Year_vol_126d
+360,30-Year_change_1d
+361,5-Year_momentum_5d
+362,1-Year_momentum_252d
+363,10s30s Spread_rsi_126d
+364,3-Month_momentum_5d
+365,30-Year_rsi_5d
+366,20-Year_vol_252d
+367,6-Month_momentum_21d
+368,3-Month_dist_ma_252d
+369,30-Year_pct_change_1d
+370,10-Year_pct_change_126d
+371,10-Year_momentum_21d
+372,10-Year_change_252d
+373,30-Year_zscore_5d
+374,10-Year_pct_change_63d
+375,2-Year_momentum_126d
+376,7-Year_change_126d
+377,2s5s_level
+378,20-Year_change_63d
+379,2s10s Spread_ma_10d
+380,3-Year_dist_ma_21d
+381,7-Year_change_10d
+382,3-Year_momentum_252d
+383,2s10s Spread_rsi_126d
+384,5s30s_carry_return_63d
+385,30-Year_vol_63d
+386,3-Year_rsi_252d
+387,3-Year_momentum_5d
+388,3-Month_ma_252d
+389,7-Year_momentum_10d
+390,10s30s_carry
+391,5-Year_pct_change_252d
+392,3m10y Spread_momentum_10d
+393,1-Year_rsi_252d
+394,7-Year_ma_63d
+395,30-Year_vol_126d
+396,7-Year_vol_21d
+397,1-Year_ma_10d
+398,6-Month_momentum_5d
+399,6-Month_ma_21d
+400,30-Year_pct_change_126d
+401,3-Year_ma_126d
+402,20-Year_change_5d
+403,7-Year_pct_change_21d
+404,30-Year_momentum_126d
+405,20-Year_momentum_252d
+406,2s5s_carry_return_21d
+407,6-Month_momentum_10d
+408,20-Year_momentum_5d
+409,5s30s Spread_momentum_126d
+410,5-Year_zscore_63d
+411,7-Year_change_252d
+412,30-Year_change_10d
+413,2s10s Spread_rsi_63d
+414,10s30s Spread_momentum_10d
+415,30-Year_ma_10d
+416,7-Year_zscore_63d
+417,7-Year_dist_ma_5d
+418,1-Year_ma_21d
+419,10-Year_momentum_252d
+420,20-Year_momentum_126d
+421,7-Year_zscore_10d
+422,7-Year_ma_126d
+423,3m10y_carry_return_21d
+424,1-Year_momentum_63d
+425,10-Year_vol_5d
+426,30-Year_zscore_63d
+427,3-Year_momentum_1d
+428,3-Year_dist_ma_126d
+429,3-Year_dist_ma_252d
+430,3-Year_rsi_21d
+431,30-Year_momentum_1d
+432,10-Year_rsi_21d
+433,3-Month_ma_10d
+434,2s10s Spread_momentum_21d
+435,1-Year_dist_ma_252d
+436,10-Year_momentum_10d
+437,6-Month_ma_63d
+438,10s30s_carry_return_21d
+439,2s5s Spread_ma_10d
+440,20-Year_change_126d
+441,30-Year_vol_5d
+442,2-Year_ma_10d
+443,10s30s_carry_return_63d
+444,30-Year_ma_1d
+445,7-Year_rsi_63d
+446,2-Year_change_252d
+447,7-Year_momentum_21d
+448,10-Year_ma_126d
+449,5s30s Spread_momentum_5d
+450,20-Year_rsi_126d
+451,2s5s_carry
+452,10-Year_ma_63d
+453,20-Year_dist_ma_21d
+454,20-Year_dist_ma_126d
+455,2s5s Spread_momentum_126d
+456,10-Year_vol_63d
+457,10-Year_vol_21d
+458,30-Year_pct_change_5d
+459,6-Month_momentum_126d

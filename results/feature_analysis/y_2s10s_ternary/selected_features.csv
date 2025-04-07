@@ -1,0 +1,302 @@
+,0
+0,3m10y Spread_pct_change_1d
+1,3-Year_zscore_5d
+2,1-Year_zscore_5d
+3,6-Month_dist_ma_5d
+4,3-Month_zscore_63d
+5,3m10y Spread_dist_ma_21d
+6,2s10s Spread_vol_21d
+7,3m10y Spread_zscore_126d
+8,week_of_year
+9,2s10s Spread_zscore_126d
+10,3-Month_vol_10d
+11,3-Month_zscore_252d
+12,2s10s Spread_rsi_21d
+13,2s10s Spread_zscore_10d
+14,3-Month_rsi_63d
+15,3-Year_pct_change_21d
+16,2-Year_pct_change_5d
+17,2s5s Spread_zscore_63d
+18,6-Month_zscore_252d
+19,3m10y Spread_pct_change_5d
+20,1-Year_zscore_63d
+21,3m10y Spread_vol_63d
+22,2s10s Spread_dist_ma_63d
+23,3m10y Spread_rsi_10d
+24,10s30s Spread_pct_change_5d
+25,5s30s Spread_change_10d
+26,2s5s Spread_rsi_21d
+27,2-Year_zscore_10d
+28,10s30s Spread_pct_change_126d
+29,5s30s Spread_pct_change_63d
+30,3m10y Spread_vol_5d
+31,20-Year_vol_10d
+32,5s30s Spread_change_5d
+33,2s10s Spread_dist_ma_21d
+34,3-Month_change_63d
+35,2s5s Spread_vol_63d
+36,1-Year_zscore_21d
+37,2s5s Spread_rsi_5d
+38,1-Year_rsi_126d
+39,10s30s Spread_rsi_63d
+40,1-Year_zscore_126d
+41,5-Year_zscore_252d
+42,2-Year_zscore_5d
+43,5-Year_rsi_10d
+44,3-Month_rsi_21d
+45,2-Year_dist_ma_5d
+46,3m10y Spread_change_1d
+47,2s5s Spread_pct_change_21d
+48,3-Month_rsi_10d
+49,2s10s Spread_vol_5d
+50,10s30s Spread_rsi_21d
+51,5-Year_vol_10d
+52,2s5s Spread_zscore_21d
+53,2s5s Spread_dist_ma_63d
+54,6-Month_zscore_21d
+55,3m10y Spread_rsi_5d
+56,5s30s Spread_change_1d
+57,10s30s Spread_pct_change_252d
+58,6-Month_rsi_5d
+59,5s30s Spread_vol_21d
+60,5-Year_vol_5d
+61,5s30s Spread_dist_ma_63d
+62,2s5s Spread_zscore_126d
+63,2s10s Spread_pct_change_1d
+64,10s30s Spread_dist_ma_21d
+65,2-Year_zscore_126d
+66,3-Year_rsi_5d
+67,10s30s Spread_dist_ma_252d
+68,3-Year_vol_5d
+69,2s5s Spread_vol_10d
+70,6-Month_dist_ma_21d
+71,3m10y Spread_pct_change_21d
+72,5s30s Spread_zscore_5d
+73,2-Year_vol_21d
+74,2s10s Spread_zscore_21d
+75,3-Month_rsi_5d
+76,2s5s Spread_pct_change_1d
+77,2s5s Spread_zscore_5d
+78,5-Year_pct_change_1d
+79,1-Year_vol_10d
+80,2-Year_vol_5d
+81,6-Month_vol_5d
+82,3-Year_pct_change_5d
+83,3m10y Spread_change_126d
+84,2s5s Spread_zscore_10d
+85,10s30s Spread_zscore_126d
+86,10s30s Spread_change_21d
+87,2-Year_pct_change_126d
+88,5-Year_pct_change_21d
+89,2-Year_rsi_63d
+90,5s30s Spread_vol_252d
+91,2-Year_dist_ma_21d
+92,3-Year_rsi_10d
+93,3-Month_dist_ma_21d
+94,2-Year_pct_change_10d
+95,2s10s Spread_pct_change_5d
+96,3m10y Spread_zscore_21d
+97,2s10s Spread_change_63d
+98,10s30s Spread_pct_change_63d
+99,3-Month_pct_change_5d
+100,2-Year_rsi_10d
+101,2s10s Spread_rsi_5d
+102,2s10s Spread_vol_10d
+103,5s30s Spread_zscore_126d
+104,2s10s Spread_zscore_5d
+105,3-Year_pct_change_1d
+106,1-Year_dist_ma_10d
+107,5-Year_rsi_5d
+108,10s30s Spread_pct_change_10d
+109,2s10s Spread_zscore_252d
+110,6-Month_vol_21d
+111,5s30s Spread_vol_5d
+112,2-Year_vol_10d
+113,3-Year_change_1d
+114,2s5s Spread_pct_change_63d
+115,5-Year_vol_21d
+116,3-Year_pct_change_10d
+117,10s30s Spread_change_10d
+118,10s30s Spread_dist_ma_10d
+119,5s30s Spread_rsi_21d
+120,2-Year_rsi_21d
+121,1-Year_rsi_10d
+122,3m10y Spread_dist_ma_252d
+123,10s30s Spread_pct_change_21d
+124,2s5s Spread_change_1d
+125,5s30s Spread_rsi_10d
+126,10s30s Spread_vol_5d
+127,5s30s Spread_pct_change_5d
+128,5s30s Spread_change_21d
+129,10s30s Spread_dist_ma_126d
+130,2s5s Spread_change_10d
+131,3m10y Spread_zscore_10d
+132,5s30s Spread_vol_126d
+133,2-Year_change_10d
+134,10s30s Spread_dist_ma_5d
+135,10s30s Spread_rsi_5d
+136,1-Year_pct_change_21d
+137,2s5s Spread_change_21d
+138,3-Month_dist_ma_5d
+139,10s30s Spread_vol_126d
+140,3-Month_vol_126d
+141,2s10s Spread_pct_change_63d
+142,2-Year_pct_change_252d
+143,3-Month_rsi_252d
+144,2-Year_rsi_5d
+145,3m10y Spread_vol_126d
+146,3m10y Spread_dist_ma_126d
+147,2s5s Spread_zscore_252d
+148,2s5s Spread_vol_21d
+149,2s10s Spread_vol_252d
+150,2-Year_pct_change_1d
+151,day_of_week
+152,10s30s Spread_dist_ma_63d
+153,yield_pc3_curvature
+154,2-Year_pct_change_21d
+155,3m10y Spread_pct_change_63d
+156,6-Month_pct_change_5d
+157,10s30s Spread_vol_252d
+158,2s10s Spread_pct_change_10d
+159,3m10y Spread_change_21d
+160,3-Month_vol_252d
+161,5s30s Spread_dist_ma_21d
+162,20-Year_vol_21d
+163,3m10y Spread_dist_ma_10d
+164,5s30s Spread_dist_ma_10d
+165,5s30s Spread_zscore_21d
+166,5-Year_zscore_10d
+167,3-Month_zscore_5d
+168,5-Year_pct_change_63d
+169,3-Month_vol_63d
+170,2-Year_zscore_63d
+171,1-Year_zscore_252d
+172,2s10s Spread_vol_126d
+173,5s30s Spread_rsi_5d
+174,10s30s Spread_change_126d
+175,2s10s Spread_dist_ma_5d
+176,5s30s Spread_change_63d
+177,2-Year_dist_ma_126d
+178,2s10s Spread_vol_63d
+179,1-Year_pct_change_63d
+180,10s30s Spread_change_5d
+181,2s10s Spread_change_126d
+182,2-Year_vol_63d
+183,3m10y Spread_change_252d
+184,2s5s Spread_change_126d
+185,2s5s Spread_dist_ma_252d
+186,5s30s Spread_pct_change_21d
+187,3m10y Spread_rsi_21d
+188,2s5s Spread_change_63d
+189,3m10y Spread_dist_ma_5d
+190,2-Year_change_5d
+191,1-Year_change_10d
+192,5-Year_pct_change_10d
+193,6-Month_pct_change_63d
+194,6-Month_zscore_126d
+195,2s5s Spread_dist_ma_21d
+196,5-Year_vol_63d
+197,6-Month_pct_change_1d
+198,2s10s Spread_dist_ma_126d
+199,20-Year_vol_5d
+200,3m10y Spread_vol_21d
+201,1-Year_dist_ma_5d
+202,5-Year_vol_252d
+203,day_of_month
+204,5s30s Spread_zscore_63d
+205,3m10y Spread_zscore_5d
+206,5s30s Spread_zscore_10d
+207,2s5s Spread_dist_ma_5d
+208,3-Month_pct_change_21d
+209,10s30s Spread_rsi_10d
+210,5s30s Spread_vol_10d
+211,2-Year_rsi_126d
+212,3-Month_change_5d
+213,2s10s Spread_change_1d
+214,3-Month_pct_change_1d
+215,1-Year_vol_5d
+216,2s10s Spread_rsi_10d
+217,5s30s Spread_rsi_63d
+218,6-Month_rsi_10d
+219,2-Year_zscore_252d
+220,10s30s Spread_vol_10d
+221,3-Month_vol_21d
+222,3-Month_dist_ma_10d
+223,3m10y Spread_change_10d
+224,5s30s Spread_pct_change_1d
+225,3m10y Spread_change_5d
+226,3-Month_zscore_126d
+227,3m10y Spread_pct_change_10d
+228,is_day_before_holiday
+229,3m10y Spread_change_63d
+230,3-Month_pct_change_10d
+231,3-Year_zscore_21d
+232,2s5s Spread_vol_252d
+233,10s30s Spread_pct_change_1d
+234,2-Year_change_1d
+235,2s10s Spread_dist_ma_252d
+236,1-Year_vol_21d
+237,3-Year_zscore_10d
+238,1-Year_rsi_21d
+239,1-Year_pct_change_5d
+240,3m10y Spread_dist_ma_63d
+241,5-Year_zscore_5d
+242,1-Year_vol_63d
+243,10s30s Spread_zscore_5d
+244,3-Year_dist_ma_5d
+245,2s10s Spread_dist_ma_10d
+246,3m10y Spread_vol_252d
+247,1-Year_dist_ma_21d
+248,1-Year_rsi_5d
+249,5s30s Spread_pct_change_10d
+250,10s30s Spread_vol_63d
+251,2-Year_dist_ma_63d
+252,3-Month_pct_change_63d
+253,6-Month_pct_change_21d
+254,2s10s Spread_zscore_63d
+255,yield_pc2_slope
+256,2-Year_dist_ma_10d
+257,3m10y Spread_vol_10d
+258,6-Month_zscore_10d
+259,5s30s Spread_zscore_252d
+260,1-Year_change_5d
+261,5-Year_zscore_126d
+262,2s5s Spread_vol_5d
+263,5s30s Spread_change_252d
+264,2s10s Spread_pct_change_126d
+265,10s30s Spread_vol_21d
+266,5-Year_pct_change_5d
+267,6-Month_zscore_63d
+268,5s30s Spread_change_126d
+269,1-Year_pct_change_1d
+270,2s5s Spread_vol_126d
+271,5s30s Spread_pct_change_126d
+272,6-Month_vol_10d
+273,6-Month_rsi_63d
+274,1-Year_zscore_10d
+275,3-Month_rsi_126d
+276,2s5s Spread_pct_change_126d
+277,3-Month_vol_5d
+278,10s30s Spread_zscore_63d
+279,3m10y Spread_zscore_63d
+280,2s10s Spread_change_5d
+281,2s5s Spread_rsi_10d
+282,1-Year_pct_change_10d
+283,2s5s Spread_dist_ma_10d
+284,10s30s Spread_zscore_21d
+285,3-Year_zscore_126d
+286,2-Year_zscore_21d
+287,2s10s Spread_pct_change_21d
+288,2s5s Spread_pct_change_10d
+289,6-Month_zscore_5d
+290,10s30s Spread_zscore_10d
+291,5s30s Spread_vol_63d
+292,10s30s Spread_change_1d
+293,5s30s Spread_dist_ma_126d
+294,2s5s Spread_pct_change_5d
+295,5s30s Spread_dist_ma_5d
+296,10s30s Spread_zscore_252d
+297,3-Month_zscore_21d
+298,3-Month_zscore_10d
+299,6-Month_dist_ma_10d
+300,6-Month_pct_change_10d
