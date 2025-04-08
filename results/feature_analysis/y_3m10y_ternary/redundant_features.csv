@@ -1,65 +1,505 @@
 ,0
-0,Retail Sales
-1,Fed Funds Target Lower
-2,10Y-Fed Funds Spread
-3,2-Year_mom_126d
-4,5s30s_carry_return_21d
-5,10Y-2Y Treasury Spread
-6,2s10s_carry
-7,2s5s_carry_return_63d
-8,2-Year_mom_1d
-9,2-Year_ma_252d
-10,5s30s_carry_return_5d
-11,2s5s_level
-12,10s30s_carry_return_5d
-13,Corporate Profits
-14,Real GDP
-15,MZM Money Supply
-16,10s30s_level
-17,quarter
-18,2s5s_carry_return_21d
-19,Business Equipment Production
-20,3m10y_level
-21,Total Bank Credit
-22,2s5s_carry_return_5d
-23,Fed Funds Target Upper
-24,Wholesale Inventories
-25,Core CPI
-26,Real Retail Sales
-27,2-Year_mom_10d
-28,2-Year_ma_63d
-29,Consumer Confidence
-30,Federal Funds Rate
-31,M2 Money Supply
-32,2-Year_mom_21d
-33,2s10s_carry_return_21d
-34,5s30s_carry_return_63d
-35,2-Year_mom_252d
-36,DJIA Volatility Index
-37,2-Year_ma_21d
-38,3m10y_carry_return_21d
-39,2-Year_ma_10d
-40,10s30s_carry_return_63d
-41,3m10y_carry_return_5d
-42,Manufacturing Capacity Utilization
-43,Monetary Base
-44,5s30s_carry
-45,2s5s_carry
-46,3m10y_carry_return_63d
-47,PCE Price Index
-48,2-Year_ma_126d
-49,Building Permits
-50,month
-51,Core PCE Price Index
-52,3m10y_carry
-53,2-Year_ma_5d
-54,10s30s_carry
-55,2s10s_carry_return_5d
-56,Retail Inventories
-57,10Y-3M Treasury Spread
-58,PPI Final Demand
-59,2-Year_mom_5d
-60,S&P 500
-61,2-Year_mom_63d
-62,BBB Corporate Spread
-63,10s30s_carry_return_21d
+0,5s30s Spread_rsi_126d
+1,7-Year_vol_10d
+2,10-Year_dist_ma_10d
+3,20-Year_ma_1d
+4,1-Year_ma_252d
+5,5-Year_change_63d
+6,10-Year_momentum_252d
+7,30-Year_pct_change_126d
+8,10-Year_dist_ma_252d
+9,7-Year_rsi_5d
+10,2-Year_ma_10d
+11,10-Year_zscore_5d
+12,macro_BBB Corporate Spread_level
+13,7-Year_momentum_10d
+14,macro_10Y-Fed Funds Spread_dist_mean
+15,20-Year_change_1d
+16,3-Year_ma_252d
+17,10s30s Spread_rsi_252d
+18,10s30s_carry_return_21d
+19,10-Year_change_21d
+20,macro_Corporate Profits_level
+21,10-Year_change_5d
+22,3-Month_momentum_63d
+23,macro_Fed Funds Target Upper_level
+24,10s30s Spread_ma_126d
+25,macro_Manufacturing Capacity Utilization_pct_change
+26,1-Year_momentum_10d
+27,10-Year_ma_10d
+28,10-Year_rsi_63d
+29,30-Year_pct_change_1d
+30,10-Year_dist_ma_5d
+31,7-Year_change_252d
+32,2s5s Spread_momentum_252d
+33,5s30s Spread_momentum_63d
+34,3-Month_ma_5d
+35,7-Year_dist_ma_126d
+36,20-Year_momentum_126d
+37,1-Year_dist_ma_252d
+38,7-Year_vol_63d
+39,2s10s Spread_ma_126d
+40,20-Year_ma_5d
+41,6-Month_ma_10d
+42,10-Year_ma_252d
+43,30-Year_ma_1d
+44,5-Year_ma_10d
+45,7-Year_rsi_252d
+46,macro_PCE Price Index_dist_mean
+47,2s5s Spread_momentum_21d
+48,5-Year_dist_ma_10d
+49,1-Year_momentum_126d
+50,macro_Durable Materials Production_dist_mean
+51,10-Year_pct_change_1d
+52,7-Year_change_1d
+53,7-Year_ma_126d
+54,10s30s Spread_momentum_10d
+55,3m10y Spread_rsi_252d
+56,20-Year_dist_ma_252d
+57,5s30s Spread_momentum_252d
+58,2s5s Spread_ma_10d
+59,10s30s Spread_momentum_5d
+60,3-Year_change_63d
+61,2-Year_ma_252d
+62,5s30s_carry_return_21d
+63,5-Year_dist_ma_5d
+64,30-Year_ma_21d
+65,3-Year_ma_5d
+66,5-Year_ma_1d
+67,2s5s Spread_rsi_126d
+68,20-Year_ma_252d
+69,3-Month_momentum_10d
+70,30-Year_momentum_10d
+71,5-Year_change_5d
+72,10-Year_momentum_126d
+73,10s30s Spread_ma_5d
+74,2-Year_momentum_252d
+75,10-Year_pct_change_21d
+76,30-Year_change_5d
+77,7-Year_momentum_252d
+78,20-Year_zscore_5d
+79,1-Year_ma_10d
+80,20-Year_rsi_5d
+81,3-Year_change_126d
+82,3m10y Spread_momentum_10d
+83,1-Year_dist_ma_126d
+84,3m10y_level
+85,10-Year_vol_63d
+86,macro_DJIA Volatility Index_pct_change
+87,30-Year_rsi_10d
+88,macro_Manufacturing Capacity Utilization_dist_mean
+89,10s30s Spread_momentum_126d
+90,3m10y_carry_return_5d
+91,20-Year_pct_change_126d
+92,20-Year_pct_change_1d
+93,3m10y Spread_ma_252d
+94,6-Month_change_63d
+95,5-Year_zscore_63d
+96,macro_MZM Money Supply_level
+97,macro_Real GDP_level
+98,2s10s_carry_return_21d
+99,7-Year_change_5d
+100,2s10s Spread_ma_63d
+101,2s10s Spread_rsi_252d
+102,20-Year_rsi_21d
+103,2s5s_carry_return_5d
+104,2s10s_carry_return_5d
+105,yield_pc1_level
+106,10s30s Spread_momentum_63d
+107,5s30s_level
+108,3-Year_momentum_1d
+109,3-Year_momentum_21d
+110,2-Year_vol_252d
+111,3m10y Spread_ma_5d
+112,30-Year_vol_21d
+113,30-Year_pct_change_10d
+114,3-Year_momentum_63d
+115,5s30s_carry_return_5d
+116,5-Year_rsi_126d
+117,6-Month_momentum_63d
+118,10-Year_pct_change_10d
+119,7-Year_change_126d
+120,macro_Core CPI_level
+121,30-Year_pct_change_21d
+122,30-Year_rsi_63d
+123,3m10y Spread_ma_10d
+124,6-Month_momentum_126d
+125,7-Year_ma_21d
+126,10-Year_change_10d
+127,20-Year_pct_change_63d
+128,2s10s Spread_rsi_126d
+129,2s10s_level
+130,1-Year_ma_126d
+131,macro_Manufacturing Capacity Utilization_level
+132,3-Year_vol_126d
+133,3-Year_rsi_21d
+134,7-Year_pct_change_10d
+135,10s30s Spread_momentum_21d
+136,10-Year_zscore_63d
+137,3-Year_vol_252d
+138,10-Year_rsi_10d
+139,2s5s Spread_momentum_10d
+140,10-Year_change_63d
+141,1-Year_vol_252d
+142,10-Year_vol_21d
+143,5-Year_rsi_63d
+144,30-Year_momentum_252d
+145,5s30s_carry_return_63d
+146,7-Year_pct_change_21d
+147,3m10y Spread_rsi_63d
+148,7-Year_change_63d
+149,1-Year_ma_1d
+150,30-Year_zscore_21d
+151,20-Year_zscore_21d
+152,3-Month_ma_252d
+153,10-Year_ma_126d
+154,2s5s Spread_momentum_63d
+155,3-Year_ma_63d
+156,3-Year_change_5d
+157,6-Month_ma_1d
+158,5s30s Spread_momentum_10d
+159,30-Year_rsi_5d
+160,30-Year_change_126d
+161,month
+162,3m10y Spread_ma_63d
+163,3m10y Spread_momentum_21d
+164,2s5s Spread_ma_63d
+165,30-Year_dist_ma_63d
+166,3m10y Spread_momentum_5d
+167,7-Year_dist_ma_5d
+168,7-Year_momentum_21d
+169,10-Year_momentum_63d
+170,2s5s Spread_momentum_126d
+171,7-Year_zscore_5d
+172,20-Year_change_126d
+173,macro_Core PCE Price Index_dist_mean
+174,2-Year_momentum_63d
+175,macro_Real Retail Sales_level
+176,7-Year_rsi_126d
+177,5s30s_carry
+178,6-Month_ma_5d
+179,30-Year_vol_63d
+180,10s30s Spread_rsi_126d
+181,10-Year_vol_252d
+182,3-Year_rsi_252d
+183,7-Year_vol_21d
+184,5-Year_dist_ma_252d
+185,2-Year_rsi_252d
+186,6-Month_change_126d
+187,3-Year_vol_21d
+188,7-Year_zscore_21d
+189,macro_Total Capacity Utilization_dist_mean
+190,3-Year_ma_21d
+191,3-Year_momentum_126d
+192,30-Year_rsi_126d
+193,10-Year_rsi_5d
+194,6-Month_momentum_10d
+195,2s5s Spread_ma_252d
+196,10-Year_rsi_21d
+197,20-Year_dist_ma_10d
+198,macro_Manufacturing Production_pct_change
+199,2s5s Spread_rsi_63d
+200,30-Year_momentum_1d
+201,10-Year_vol_5d
+202,20-Year_rsi_10d
+203,10-Year_ma_5d
+204,10s30s Spread_ma_63d
+205,10s30s Spread_ma_252d
+206,30-Year_pct_change_5d
+207,20-Year_ma_10d
+208,7-Year_zscore_252d
+209,1-Year_change_252d
+210,5-Year_rsi_21d
+211,5-Year_change_21d
+212,5-Year_momentum_126d
+213,5-Year_change_252d
+214,30-Year_zscore_63d
+215,20-Year_change_10d
+216,macro_PCE Price Index_pct_change
+217,5-Year_pct_change_252d
+218,2s5s Spread_ma_1d
+219,7-Year_momentum_63d
+220,30-Year_vol_10d
+221,1-Year_ma_5d
+222,3m10y_carry_return_21d
+223,30-Year_ma_5d
+224,2s5s_carry
+225,20-Year_rsi_63d
+226,30-Year_change_252d
+227,10-Year_zscore_126d
+228,20-Year_change_252d
+229,macro_NASDAQ Volatility Index_level
+230,2-Year_ma_21d
+231,3-Year_dist_ma_21d
+232,3-Year_dist_ma_126d
+233,7-Year_zscore_10d
+234,3m10y Spread_momentum_63d
+235,10-Year_ma_1d
+236,6-Month_dist_ma_63d
+237,30-Year_dist_ma_10d
+238,macro_Retail Inventories_level
+239,macro_Building Permits_level
+240,2s10s Spread_momentum_21d
+241,2s5s_carry_return_63d
+242,5s30s Spread_momentum_5d
+243,30-Year_change_10d
+244,10-Year_pct_change_126d
+245,30-Year_momentum_126d
+246,30-Year_momentum_5d
+247,6-Month_ma_63d
+248,3-Month_dist_ma_126d
+249,30-Year_change_63d
+250,2s5s_level
+251,5-Year_ma_21d
+252,20-Year_ma_63d
+253,2s10s Spread_momentum_5d
+254,5-Year_change_126d
+255,6-Month_dist_ma_126d
+256,6-Month_momentum_1d
+257,5s30s Spread_ma_252d
+258,5s30s Spread_ma_21d
+259,macro_Manufacturing Production_dist_mean
+260,7-Year_rsi_21d
+261,1-Year_vol_126d
+262,30-Year_pct_change_252d
+263,3m10y Spread_momentum_1d
+264,20-Year_zscore_63d
+265,10s30s Spread_ma_10d
+266,10-Year_zscore_21d
+267,2s10s Spread_momentum_126d
+268,5s30s Spread_momentum_1d
+269,2-Year_momentum_10d
+270,macro_PPI Final Demand_level
+271,7-Year_pct_change_5d
+272,30-Year_ma_10d
+273,6-Month_change_252d
+274,3m10y Spread_momentum_252d
+275,macro_Wholesale Inventories_level
+276,7-Year_change_10d
+277,2s10s Spread_rsi_63d
+278,5-Year_change_10d
+279,10-Year_zscore_252d
+280,macro_PCE Price Index_zscore
+281,20-Year_momentum_63d
+282,6-Month_vol_63d
+283,2-Year_dist_ma_252d
+284,5s30s Spread_ma_126d
+285,10s30s_carry
+286,7-Year_pct_change_126d
+287,20-Year_change_63d
+288,20-Year_dist_ma_5d
+289,20-Year_momentum_1d
+290,1-Year_change_126d
+291,3-Year_change_10d
+292,1-Year_ma_63d
+293,macro_Retail Sales_level
+294,2s5s Spread_ma_21d
+295,1-Year_momentum_252d
+296,macro_PCE Price Index_level
+297,7-Year_pct_change_63d
+298,10s30s_carry_return_5d
+299,30-Year_pct_change_63d
+300,30-Year_rsi_21d
+301,5-Year_momentum_252d
+302,6-Month_momentum_21d
+303,30-Year_rsi_252d
+304,6-Month_momentum_5d
+305,3-Year_ma_10d
+306,10-Year_rsi_252d
+307,10-Year_dist_ma_126d
+308,20-Year_pct_change_252d
+309,macro_Fed Funds Target Upper_dist_mean
+310,3-Month_dist_ma_63d
+311,macro_Total Capacity Utilization_pct_change
+312,30-Year_vol_126d
+313,3-Month_dist_ma_252d
+314,10-Year_dist_ma_21d
+315,20-Year_momentum_10d
+316,10s30s Spread_momentum_252d
+317,3m10y_carry
+318,10-Year_momentum_5d
+319,macro_Final Products Production_dist_mean
+320,7-Year_vol_252d
+321,10s30s Spread_momentum_1d
+322,macro_Manufacturing Capacity Utilization_zscore
+323,2s10s Spread_momentum_10d
+324,macro_10Y-Fed Funds Spread_level
+325,macro_M2 Money Supply_level
+326,7-Year_change_21d
+327,20-Year_rsi_126d
+328,30-Year_ma_252d
+329,10-Year_change_1d
+330,3-Month_ma_21d
+331,10-Year_change_126d
+332,5-Year_ma_126d
+333,6-Month_momentum_252d
+334,7-Year_ma_1d
+335,1-Year_momentum_5d
+336,30-Year_ma_126d
+337,20-Year_zscore_126d
+338,5-Year_momentum_21d
+339,7-Year_ma_5d
+340,20-Year_dist_ma_126d
+341,3-Year_momentum_252d
+342,6-Month_ma_21d
+343,3m10y Spread_ma_21d
+344,5-Year_momentum_1d
+345,2s5s Spread_momentum_1d
+346,1-Year_rsi_252d
+347,7-Year_rsi_10d
+348,10-Year_zscore_10d
+349,3-Year_vol_63d
+350,3-Year_dist_ma_252d
+351,10-Year_change_252d
+352,3-Year_ma_126d
+353,5-Year_dist_ma_63d
+354,2-Year_momentum_1d
+355,30-Year_change_21d
+356,20-Year_rsi_252d
+357,3m10y Spread_ma_126d
+358,7-Year_zscore_126d
+359,3-Year_dist_ma_10d
+360,macro_DJIA Volatility Index_dist_mean
+361,3-Year_zscore_63d
+362,10s30s Spread_ma_21d
+363,3-Year_change_252d
+364,30-Year_momentum_63d
+365,5s30s Spread_momentum_126d
+366,2-Year_ma_126d
+367,20-Year_dist_ma_21d
+368,10-Year_pct_change_252d
+369,3-Month_momentum_21d
+370,30-Year_dist_ma_21d
+371,5-Year_momentum_63d
+372,30-Year_dist_ma_5d
+373,30-Year_dist_ma_126d
+374,5-Year_momentum_10d
+375,10-Year_pct_change_63d
+376,30-Year_zscore_5d
+377,5-Year_momentum_5d
+378,2-Year_ma_5d
+379,macro_Core PCE Price Index_level
+380,3-Month_ma_63d
+381,7-Year_dist_ma_252d
+382,7-Year_dist_ma_21d
+383,10-Year_vol_126d
+384,7-Year_ma_10d
+385,5s30s Spread_ma_10d
+386,quarter
+387,macro_DJIA Volatility Index_level
+388,6-Month_rsi_126d
+389,7-Year_dist_ma_63d
+390,10s30s_level
+391,macro_Durable Materials Production_pct_change
+392,20-Year_pct_change_21d
+393,1-Year_momentum_1d
+394,7-Year_ma_252d
+395,20-Year_dist_ma_63d
+396,2-Year_momentum_5d
+397,30-Year_momentum_21d
+398,2s10s Spread_ma_21d
+399,30-Year_zscore_252d
+400,5-Year_zscore_21d
+401,10-Year_rsi_126d
+402,3-Month_ma_10d
+403,20-Year_momentum_21d
+404,3-Year_vol_10d
+405,6-Month_ma_252d
+406,7-Year_dist_ma_10d
+407,3-Year_dist_ma_63d
+408,3-Year_momentum_5d
+409,20-Year_change_21d
+410,20-Year_zscore_252d
+411,3-Year_change_21d
+412,10-Year_dist_ma_63d
+413,10-Year_ma_63d
+414,20-Year_vol_126d
+415,20-Year_ma_21d
+416,2-Year_momentum_126d
+417,3-Month_ma_126d
+418,20-Year_momentum_5d
+419,2s5s_carry_return_21d
+420,macro_Business Equipment Production_level
+421,3-Month_momentum_5d
+422,7-Year_vol_5d
+423,6-Month_vol_126d
+424,2s10s_carry_return_63d
+425,7-Year_zscore_63d
+426,7-Year_momentum_1d
+427,30-Year_zscore_10d
+428,2-Year_ma_1d
+429,7-Year_pct_change_1d
+430,3-Year_momentum_10d
+431,20-Year_vol_63d
+432,10-Year_momentum_21d
+433,5s30s Spread_momentum_21d
+434,10-Year_pct_change_5d
+435,2s10s Spread_momentum_1d
+436,2s5s Spread_ma_126d
+437,30-Year_dist_ma_252d
+438,1-Year_ma_21d
+439,10-Year_ma_21d
+440,3-Year_ma_1d
+441,5s30s Spread_ma_63d
+442,20-Year_momentum_252d
+443,5-Year_ma_5d
+444,3-Month_momentum_126d
+445,2-Year_momentum_21d
+446,5s30s Spread_ma_5d
+447,20-Year_change_5d
+448,10-Year_momentum_1d
+449,20-Year_zscore_10d
+450,1-Year_momentum_63d
+451,3-Year_rsi_63d
+452,5-Year_ma_252d
+453,2s10s Spread_momentum_63d
+454,2s10s Spread_momentum_252d
+455,2s5s Spread_rsi_252d
+456,2-Year_change_252d
+457,macro_Nonfarm Payrolls_dist_mean
+458,5-Year_dist_ma_126d
+459,2-Year_ma_63d
+460,3m10y Spread_momentum_126d
+461,7-Year_momentum_5d
+462,20-Year_vol_252d
+463,6-Month_rsi_252d
+464,macro_Consumer Confidence_level
+465,macro_Final Products Production_pct_change
+466,2s5s Spread_momentum_5d
+467,6-Month_dist_ma_252d
+468,30-Year_ma_63d
+469,3-Year_rsi_126d
+470,7-Year_vol_126d
+471,macro_10Y-Fed Funds Spread_zscore
+472,30-Year_zscore_126d
+473,2s10s_carry
+474,macro_Final Products Production_level
+475,5-Year_rsi_252d
+476,20-Year_pct_change_10d
+477,7-Year_rsi_63d
+478,macro_Real Retail Sales_pct_change
+479,30-Year_vol_252d
+480,10s30s Spread_ma_1d
+481,6-Month_vol_252d
+482,3-Month_momentum_1d
+483,10-Year_momentum_10d
+484,1-Year_momentum_21d
+485,2s5s Spread_ma_5d
+486,10s30s_carry_return_63d
+487,5-Year_ma_63d
+488,3-Month_momentum_252d
+489,2s10s Spread_ma_10d
+490,20-Year_pct_change_5d
+491,3m10y_carry_return_63d
+492,7-Year_ma_63d
+493,10-Year_vol_10d
+494,7-Year_momentum_126d
+495,5s30s Spread_rsi_252d
+496,6-Month_ma_126d
+497,20-Year_ma_126d
+498,30-Year_change_1d
+499,30-Year_vol_5d
+500,7-Year_pct_change_252d
+501,2s10s Spread_ma_5d
+502,5-Year_dist_ma_21d
+503,3m10y Spread_rsi_126d
