@@ -613,3 +613,43 @@ This document maintains a chronological record of all changes made to the Yield 
   - Organized results directory structure for better analysis
   - Added support for saving predictions and actual values
   - Included best hyperparameters in saved results
+
+## 2024-04-08 06:10 EDT
+- Fixed Lasso model convergence issues
+  - Reduced regularization strength (alpha=0.1)
+  - Increased maximum iterations to 5000
+  - Relaxed convergence tolerance to 1e-4
+  - Added random selection for better convergence
+  - Improved model stability and training performance
+
+## 2024-04-08 06:15 EDT
+- Further improved Lasso model convergence
+  - Added feature scaling for linear models
+  - Further reduced regularization strength (alpha=0.01)
+  - Increased maximum iterations to 10000
+  - Relaxed tolerance to 1e-3
+  - Added warm start for better convergence
+  - Forced positive coefficients
+  - Simplified model creation logic
+  - Improved data loading and preprocessing
+
+## 2024-04-08 06:20 EDT
+- Codebase Structure and Organization
+  - Core Components:
+    - Data Ingestion: FRED API integration for Treasury and macro data
+    - Feature Engineering: Comprehensive feature creation pipeline
+    - Feature Analysis: Feature optimization and selection
+    - Model Training: Flexible framework for multiple models and prediction types
+    - Testing: Systematic testing across all spreads and models
+  - Key Features:
+    - Multiple model support (Ridge, Lasso, RF, XGBoost, LSTM)
+    - Multiple prediction types (next_day, direction, ternary)
+    - Walk-forward validation
+    - Comprehensive error handling and logging
+    - Organized results storage and analysis
+  - Directory Structure:
+    - src/: Core Python modules
+    - data/: Raw and processed data
+    - results/: Model outputs and analysis
+    - tests/: Unit tests
+    - notebooks/: Analysis notebooks
