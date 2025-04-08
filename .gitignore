@@ -43,6 +43,7 @@ results/model_pickles/*
 results/plots/*
 results/performance_reports/*
 results/logs/*
+results/model_training/*
 
 # Keep .gitkeep files
 !data/raw/.gitkeep
@@ -51,6 +52,7 @@ results/logs/*
 !results/plots/.gitkeep
 !results/performance_reports/.gitkeep
 !results/logs/.gitkeep
+!results/model_training/.gitkeep
 
 # OS specific
 .DS_Store
