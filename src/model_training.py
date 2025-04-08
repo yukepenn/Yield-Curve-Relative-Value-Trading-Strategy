@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Union
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import mean_squared_error, accuracy_score, f1_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.calibration import CalibratedClassifierCV
@@ -20,11 +20,12 @@ import json
 from datetime import datetime
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.stattools import adfuller
 from pmdarima import auto_arima
 import warnings
+from itertools import product
 warnings.filterwarnings('ignore')
 
 # Configure logging
@@ -105,10 +106,214 @@ class MLPModel(nn.Module):
     def forward(self, x):
         return self.network(x)
 
+class HyperparameterTuner:
+    """Class to handle hyperparameter tuning for different model types."""
+    
+    @staticmethod
+    def get_param_grid(model_type: str) -> Dict:
+        """Get hyperparameter grid for specified model type."""
+        if model_type == 'ridge':
+            return {
+                'alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+            }
+        elif model_type == 'lasso':
+            return {
+                'alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+            }
+        elif model_type == 'rf':
+            return {
+                'n_estimators': [100, 200, 300],
+                'max_depth': [10, 20, 30, None],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4]
+            }
+        elif model_type == 'xgb':
+            return {
+                'n_estimators': [100, 200, 300],
+                'max_depth': [3, 5, 7],
+                'learning_rate': [0.01, 0.1, 0.3],
+                'subsample': [0.8, 0.9, 1.0],
+                'colsample_bytree': [0.8, 0.9, 1.0]
+            }
+        elif model_type == 'mlp':
+            return {
+                'hidden_sizes': [[512, 256, 128], [256, 128, 64], [128, 64, 32]],
+                'dropout': [0.1, 0.2, 0.3],
+                'learning_rate': [0.0001, 0.001, 0.01],
+                'batch_size': [32, 64, 128],
+                'activation': ['relu', 'elu']
+            }
+        elif model_type == 'lstm':
+            return {
+                'hidden_size': [64, 128, 256],
+                'num_layers': [1, 2],
+                'dropout': [0.1, 0.2, 0.3],
+                'learning_rate': [0.0001, 0.001, 0.01],
+                'batch_size': [32, 64, 128],
+                'sequence_length': [20, 63, 126]
+            }
+        elif model_type == 'arima':
+            return {
+                'p': range(0, 5),
+                'd': range(0, 3),
+                'q': range(0, 5)
+            }
+        else:
+            raise ValueError(f"Unknown model type: {model_type}")
+    
+    @staticmethod
+    def tune_traditional_model(model_type: str, X: np.ndarray, y: np.ndarray, cv: TimeSeriesSplit) -> Tuple[BaseEstimator, Dict]:
+        """Tune traditional ML models (Ridge, Lasso, RF, XGB) using TimeSeriesSplit CV."""
+        param_grid = HyperparameterTuner.get_param_grid(model_type)
+        
+        if model_type == 'ridge':
+            base_model = Ridge()
+        elif model_type == 'lasso':
+            base_model = Lasso()
+        elif model_type == 'rf':
+            base_model = RandomForestRegressor(random_state=42)
+        elif model_type == 'xgb':
+            base_model = xgb.XGBRegressor(random_state=42)
+        else:
+            raise ValueError(f"Unsupported model type for traditional tuning: {model_type}")
+        
+        grid_search = RandomizedSearchCV(
+            estimator=base_model,
+            param_distributions=param_grid,
+            n_iter=20,
+            cv=cv,
+            scoring='neg_mean_squared_error',
+            n_jobs=-1,
+            random_state=42,
+            verbose=1
+        )
+        
+        grid_search.fit(X, y)
+        return grid_search.best_estimator_, grid_search.best_params_
+    
+    @staticmethod
+    def tune_arima(y: np.ndarray) -> Tuple[Dict, float]:
+        """Tune ARIMA model using auto_arima."""
+        try:
+            model = auto_arima(
+                y,
+                start_p=0,
+                start_q=0,
+                max_p=4,
+                max_q=4,
+                m=1,
+                start_P=0,
+                seasonal=False,
+                d=1,
+                D=1,
+                trace=True,
+                error_action='ignore',
+                suppress_warnings=True,
+                stepwise=True
+            )
+            
+            best_params = {
+                'p': model.order[0],
+                'd': model.order[1],
+                'q': model.order[2]
+            }
+            
+            return best_params, model.aic()
+            
+        except Exception as e:
+            logging.error(f"Error in ARIMA tuning: {str(e)}")
+            return None, None
+    
+    @staticmethod
+    def tune_deep_learning(model_type: str, features: pd.DataFrame, target: pd.Series, 
+                          train_idx: np.ndarray, val_idx: np.ndarray) -> Dict:
+        """Tune deep learning models (MLP, LSTM) using validation set."""
+        param_grid = HyperparameterTuner.get_param_grid(model_type)
+        best_params = None
+        best_val_loss = float('inf')
+        
+        # Create parameter combinations
+        param_combinations = [dict(zip(param_grid.keys(), v)) 
+                            for v in product(*param_grid.values())]
+        
+        for params in param_combinations:
+            try:
+                if model_type == 'mlp':
+                    model = MLPModel(
+                        input_size=len(features.columns),
+                        hidden_sizes=params['hidden_sizes'],
+                        output_size=1,  # For regression
+                        dropout=params['dropout']
+                    )
+                elif model_type == 'lstm':
+                    model = LSTMModel(
+                        input_size=len(features.columns),
+                        hidden_size=params['hidden_size'],
+                        num_layers=params['num_layers'],
+                        output_size=1,  # For regression
+                        dropout=params['dropout']
+                    )
+                
+                # Train model with current parameters
+                optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+                criterion = nn.MSELoss()
+                
+                # Prepare data
+                X_train = torch.FloatTensor(features.iloc[train_idx].values)
+                y_train = torch.FloatTensor(target.iloc[train_idx].values)
+                X_val = torch.FloatTensor(features.iloc[val_idx].values)
+                y_val = torch.FloatTensor(target.iloc[val_idx].values)
+                
+                # Create dataloaders
+                train_dataset = TensorDataset(X_train, y_train)
+                val_dataset = TensorDataset(X_val, y_val)
+                train_loader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=True)
+                val_loader = DataLoader(val_dataset, batch_size=params['batch_size'])
+                
+                # Training loop
+                patience = 5
+                patience_counter = 0
+                best_model_state = None
+                
+                for epoch in range(100):  # Max epochs
+                    model.train()
+                    for batch_X, batch_y in train_loader:
+                        optimizer.zero_grad()
+                        outputs = model(batch_X)
+                        loss = criterion(outputs, batch_y)
+                        loss.backward()
+                        optimizer.step()
+                    
+                    # Validation
+                    model.eval()
+                    val_loss = 0
+                    with torch.no_grad():
+                        for batch_X, batch_y in val_loader:
+                            outputs = model(batch_X)
+                            val_loss += criterion(outputs, batch_y).item()
+                    val_loss /= len(val_loader)
+                    
+                    # Early stopping
+                    if val_loss < best_val_loss:
+                        best_val_loss = val_loss
+                        best_params = params
+                        best_model_state = model.state_dict()
+                        patience_counter = 0
+                    else:
+                        patience_counter += 1
+                        if patience_counter >= patience:
+                            break
+                
+            except Exception as e:
+                logging.error(f"Error in deep learning tuning with params {params}: {str(e)}")
+                continue
+        
+        return best_params
+
 class ModelTrainer:
     """Base class for model training with walk-forward validation."""
     
-    def __init__(self, spread: str, prediction_type: str, model_type: str):
+    def __init__(self, spread: str, prediction_type: str, model_type: str, tune_hyperparameters: bool = True):
         """
         Initialize ModelTrainer.
         
@@ -116,25 +321,39 @@ class ModelTrainer:
             spread: Name of the spread ('2s10s', '5s30s', '2s5s', '10s30s', '3m10y')
             prediction_type: Type of prediction ('next_day', 'direction', 'ternary')
             model_type: Type of model ('ridge', 'lasso', 'rf', 'xgb', 'lstm', 'mlp', 'arima')
+            tune_hyperparameters: Whether to perform hyperparameter tuning
         """
         self.spread = spread
         self.prediction_type = prediction_type
         self.model_type = model_type
+        self.tune_hyperparameters = tune_hyperparameters
         self.model = None
-        self.scaler = StandardScaler()  # Initialize scaler
+        self.scaler = StandardScaler()
         self.features = None
         self.target = None
         self.results = {}
+        self.best_params = None
         
-        # MLP hyperparameters
+        # MLP hyperparameters (will be updated if tuning is enabled)
         if self.model_type == 'mlp':
-            self.hidden_sizes = [512, 256, 128]  # Three hidden layers
+            self.hidden_sizes = [512, 256, 128]
             self.dropout = 0.2
             self.learning_rate = 0.001
             self.batch_size = 32
             self.epochs = 100
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            self.target_scaler = MinMaxScaler()  # For scaling regression targets
+            self.target_scaler = MinMaxScaler()
+        
+        # LSTM hyperparameters (will be updated if tuning is enabled)
+        elif self.model_type == 'lstm':
+            self.hidden_size = 128
+            self.num_layers = 2
+            self.dropout = 0.2
+            self.learning_rate = 0.001
+            self.batch_size = 32
+            self.sequence_length = 63
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.target_scaler = MinMaxScaler()
         
         # Create directories for saving models and results
         self.models_dir = Path('results/model_pickles')
@@ -220,16 +439,25 @@ class ModelTrainer:
             return None, None
     
     def create_model(self) -> None:
-        """Create model instance based on model_type."""
+        """Create model instance based on model_type and hyperparameters."""
         if self.prediction_type == 'next_day':
             if self.model_type == 'ridge':
-                self.model = Ridge(alpha=1.0)
+                params = self.best_params if self.best_params else {'alpha': 1.0}
+                self.model = Ridge(**params)
             elif self.model_type == 'lasso':
-                self.model = Lasso(alpha=1.0)
+                params = self.best_params if self.best_params else {'alpha': 1.0}
+                self.model = Lasso(**params)
             elif self.model_type == 'rf':
-                self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+                params = self.best_params if self.best_params else {
+                    'n_estimators': 100,
+                    'random_state': 42
+                }
+                self.model = RandomForestRegressor(**params)
             elif self.model_type == 'xgb':
-                self.model = xgb.XGBRegressor(random_state=42)
+                params = self.best_params if self.best_params else {
+                    'random_state': 42
+                }
+                self.model = xgb.XGBRegressor(**params)
         
         elif self.prediction_type in ['direction', 'ternary']:
             # Handle class imbalance
@@ -241,28 +469,31 @@ class ModelTrainer:
             class_weight_dict = dict(zip(np.unique(self.target), class_weights))
             
             if self.model_type == 'rf':
-                self.model = RandomForestClassifier(
-                    n_estimators=100,
-                    class_weight=class_weight_dict,
-                    random_state=42
-                )
+                params = self.best_params if self.best_params else {
+                    'n_estimators': 100,
+                    'class_weight': class_weight_dict,
+                    'random_state': 42
+                }
+                self.model = RandomForestClassifier(**params)
             elif self.model_type == 'xgb':
+                params = self.best_params if self.best_params else {
+                    'random_state': 42
+                }
                 if self.prediction_type == 'ternary':
-                    self.model = xgb.XGBClassifier(
-                        objective='multi:softmax',
-                        num_class=3,
-                        random_state=42
-                    )
+                    params.update({
+                        'objective': 'multi:softmax',
+                        'num_class': 3
+                    })
                 else:
-                    self.model = xgb.XGBClassifier(
-                        objective='binary:logistic',
-                        random_state=42
-                    )
+                    params.update({
+                        'objective': 'binary:logistic'
+                    })
+                self.model = xgb.XGBClassifier(**params)
         
         else:
             raise ValueError(f"Unknown target type: {self.prediction_type}")
         
-        logging.info(f"Created {self.model_type} model for {self.prediction_type} prediction")
+        logging.info(f"Created {self.model_type} model for {self.prediction_type} prediction with params: {self.best_params}")
     
     def walk_forward_validation(self, n_splits: int = 5) -> Dict:
         """
@@ -423,8 +654,8 @@ class ModelTrainer:
             target_val = target.iloc[val_idx].values
         
         # Create datasets
-        train_dataset = TimeSeriesDataset(scaled_features, target_train, self.seq_length)
-        val_dataset = TimeSeriesDataset(scaled_features_val, target_val, self.seq_length)
+        train_dataset = TimeSeriesDataset(scaled_features, target_train, self.sequence_length)
+        val_dataset = TimeSeriesDataset(scaled_features_val, target_val, self.sequence_length)
         
         # Create dataloaders
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -910,12 +1141,20 @@ class ModelTrainer:
             return None
 
     def train(self):
-        """Train model and save results."""
+        """Train model with optional hyperparameter tuning."""
         try:
             # Load data for all model types
             features, target = self.load_data()
             if features is None or target is None:
                 return None
+            
+            # Store data for later use
+            self.features = features
+            self.target = target
+            
+            # Perform hyperparameter tuning if enabled
+            if self.tune_hyperparameters:
+                self._tune_hyperparameters()
             
             # Train model based on type
             if self.model_type == 'lstm':
@@ -934,6 +1173,10 @@ class ModelTrainer:
             if results is None:
                 return None
             
+            # Add hyperparameters to results
+            if self.best_params:
+                results['hyperparameters'] = self.best_params
+            
             # Save results
             self.save_results(results)
             
@@ -946,6 +1189,59 @@ class ModelTrainer:
         except Exception as e:
             logging.error(f"Error in training: {e}")
             return None
+
+    def _tune_hyperparameters(self) -> None:
+        """Perform hyperparameter tuning based on model type."""
+        logging.info(f"Starting hyperparameter tuning for {self.model_type}")
+        
+        try:
+            if self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
+                # Traditional ML models
+                tscv = TimeSeriesSplit(n_splits=5)
+                X = self.features.values
+                y = self.target.values
+                
+                _, self.best_params = HyperparameterTuner.tune_traditional_model(
+                    self.model_type, X, y, tscv
+                )
+                
+            elif self.model_type == 'arima':
+                # ARIMA models
+                self.best_params, _ = HyperparameterTuner.tune_arima(self.target.values)
+                
+            elif self.model_type in ['mlp', 'lstm']:
+                # Deep learning models
+                tscv = TimeSeriesSplit(n_splits=5)
+                for train_idx, val_idx in tscv.split(self.features):
+                    self.best_params = HyperparameterTuner.tune_deep_learning(
+                        self.model_type,
+                        self.features,
+                        self.target,
+                        train_idx,
+                        val_idx
+                    )
+                    break  # Only use first split for tuning to save time
+                
+                # Update model parameters
+                if self.best_params:
+                    if self.model_type == 'mlp':
+                        self.hidden_sizes = self.best_params['hidden_sizes']
+                        self.dropout = self.best_params['dropout']
+                        self.learning_rate = self.best_params['learning_rate']
+                        self.batch_size = self.best_params['batch_size']
+                    else:  # lstm
+                        self.hidden_size = self.best_params['hidden_size']
+                        self.num_layers = self.best_params['num_layers']
+                        self.dropout = self.best_params['dropout']
+                        self.learning_rate = self.best_params['learning_rate']
+                        self.batch_size = self.best_params['batch_size']
+                        self.sequence_length = self.best_params['sequence_length']
+            
+            logging.info(f"Best parameters found: {self.best_params}")
+            
+        except Exception as e:
+            logging.error(f"Error in hyperparameter tuning: {str(e)}")
+            self.best_params = None
 
     @staticmethod
     def run_batch_training():
