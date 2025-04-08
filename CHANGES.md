@@ -653,3 +653,58 @@ This document maintains a chronological record of all changes made to the Yield 
     - results/: Model outputs and analysis
     - tests/: Unit tests
     - notebooks/: Analysis notebooks
+
+## 2024-04-08 06:30 EDT
+- Implemented LSTM model for time series prediction
+  - Added TimeSeriesDataset class for sequence data handling
+  - Created LSTMModel class with configurable architecture
+  - Added LSTM-specific training and validation functions
+  - Implemented early stopping and model checkpointing
+  - Added support for both regression and classification tasks
+  - Features:
+    - Sequence length: 10 time steps
+    - Hidden size: 128
+    - 2 LSTM layers with dropout
+    - Batch size: 32
+    - Learning rate: 0.001
+    - Early stopping with patience of 5
+    - GPU support when available
+  - Data handling:
+    - Feature scaling with StandardScaler
+    - Target scaling with MinMaxScaler for regression
+    - 70/15/15 train/val/test split
+    - Proper sequence creation for time series
+
+## 2024-04-08 06:40 EDT
+- Updated LSTM implementation to use walk-forward validation
+  - Replaced fixed train/val/test splits with TimeSeriesSplit
+  - Added fold-specific model checkpointing
+  - Implemented proper data scaling per fold
+  - Added comprehensive metrics collection
+  - Features:
+    - 5-fold walk-forward validation
+    - Per-fold model saving and loading
+    - Proper sequence handling within folds
+    - Consistent metrics with other models
+    - Support for both regression and classification tasks
+  - Standardized evaluation approach across all models
+
+## 2024-04-08 07:00 EDT
+### ARIMA Model Implementation
+- Added ARIMA model support to model_training.py:
+  - Implemented auto_arima for optimal parameter selection
+  - Added walk-forward validation support
+  - Integrated with existing model training framework
+  - Features:
+    - Automatic order selection (p, d, q)
+    - Seasonal component handling
+    - Multiple validation folds
+    - Model persistence per fold
+    - Consistent metrics with other models
+  - Improvements:
+    - Used pmdarima for automatic parameter tuning
+    - Added proper error handling and logging
+    - Implemented model saving and loading
+    - Added MSE tracking across folds
+    - Restricted to next_day prediction type
+    - Maintained consistent results format
