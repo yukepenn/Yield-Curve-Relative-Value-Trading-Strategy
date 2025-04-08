@@ -99,6 +99,52 @@ Format: "Type(component): description"
    - Transaction cost modeling
    - Risk management rules
 
+## Recent Updates
+
+### Model Training Framework
+- Implemented comprehensive model training framework supporting multiple model types:
+  - Traditional ML: Random Forest, XGBoost, Ridge, Lasso
+  - Deep Learning: LSTM, Feed-Forward MLP
+  - Statistical: ARIMA
+- Added unified training interface through `ModelTrainer` class
+- Implemented walk-forward validation for all models
+- Added proper error handling and logging
+- Integrated GPU support for deep learning models
+
+### Model Types and Features
+- Feed-Forward MLP:
+  - Flexible architecture with configurable hidden layers [512, 256, 128]
+  - BatchNormalization and Dropout for regularization
+  - Early stopping and model persistence
+  - Support for regression and classification tasks
+- LSTM Model:
+  - Sequence modeling capabilities
+  - Configurable hidden layers and sequence length
+- ARIMA Model:
+  - Statistical time series modeling
+  - Automatic parameter selection
+
+### Testing Framework
+- Comprehensive testing suite in `test_all_models.py`:
+  - Tests all combinations of spreads and prediction types
+  - Supports all model architectures
+  - Saves detailed results and metrics
+- Individual model testing in `test_model_training.py`:
+  - Quick testing of specific model configurations
+  - Detailed feature importance analysis
+  - Performance metrics logging
+
+### Results and Analysis
+- All results saved in structured format:
+  - Model pickles in `results/model_pickles/`
+  - Training results in `results/model_training/`
+  - Detailed logs in `results/logs/`
+- Performance metrics tracked:
+  - MSE for regression tasks
+  - Accuracy, F1-score for classification
+  - Feature importance analysis
+  - Training/validation loss curves
+
 ## Setup
 
 1. Clone the repository
@@ -127,6 +173,24 @@ Format: "Type(component): description"
 
 3. Feature Analysis:
    Run notebooks/2_feature_analysis.ipynb
+
+4. Model Training:
+   ```python
+   # Initialize trainer
+   trainer = ModelTrainer(
+       spread='2s10s',
+       prediction_type='next_day',
+       model_type='mlp'  # or 'lstm', 'rf', 'xgb', 'arima'
+   )
+
+   # Train model
+   results = trainer.train()
+
+   # Results include metrics and predictions
+   print(f"MSE: {results['mse']}")
+   print(f"Training Loss: {results['train_loss']}")
+   print(f"Validation Loss: {results['val_loss']}")
+   ```
 
 ## Contributing
 

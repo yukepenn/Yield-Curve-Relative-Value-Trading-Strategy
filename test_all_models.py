@@ -63,46 +63,36 @@ def train_model(spread: str, prediction_type: str, model_type: str) -> Dict:
             model_type=model_type
         )
         
-        # Load data
-        features, target = trainer.load_data()
-        if features is None or target is None:
-            logging.error(f"Failed to load data for {spread} {prediction_type}")
-            return None
-        
-        # Create and train model
-        trainer.create_model()
-        results = trainer.walk_forward_validation(n_splits=3)  # Reduced number of splits
+        # Train model using unified train method
+        results = trainer.train()
         
         if results is None:
-            logging.error(f"Walk-forward validation failed for {spread} {prediction_type}")
+            logging.error(f"Training failed for {spread} {prediction_type}")
             return None
-        
-        # Save results and model
-        trainer.save_results(results)
-        trainer.save_model()
         
         # Prepare summary
         summary = {
             'spread': spread,
             'prediction_type': prediction_type,
             'model_type': model_type,
-            'num_features': len(features.columns),
-            'num_samples': len(features),
+            'num_features': len(trainer.features.columns),
+            'num_samples': len(trainer.features),
             'date_range': {
-                'start': features.index.min().strftime('%Y-%m-%d'),
-                'end': features.index.max().strftime('%Y-%m-%d')
+                'start': trainer.features.index.min().strftime('%Y-%m-%d'),
+                'end': trainer.features.index.max().strftime('%Y-%m-%d')
             }
         }
         
         # Add metrics based on prediction type
         if prediction_type == 'next_day':
-            summary['mse'] = np.mean(results['mse'])
-            summary['mse_std'] = np.std(results['mse'])
+            summary['mse'] = results['mse']
+            summary['train_loss'] = results.get('train_loss')
+            summary['val_loss'] = results.get('val_loss')
         else:
-            summary['accuracy'] = np.mean(results['accuracy'])
-            summary['f1'] = np.mean(results['f1'])
+            summary['accuracy'] = results.get('accuracy')
+            summary['f1'] = results.get('f1')
             if prediction_type == 'direction':
-                summary['roc_auc'] = np.mean(results['roc_auc'])
+                summary['roc_auc'] = results.get('roc_auc')
         
         # Add top features if available
         if hasattr(trainer.model, 'feature_importances_'):
