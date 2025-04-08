@@ -233,6 +233,48 @@ class FeatureEngineer:
             logger.error(f"Error computing carry features: {str(e)}")
             return pd.DataFrame(index=self.treasury_data.index)
 
+    def _compute_macro_features(self) -> pd.DataFrame:
+        """Compute features from macro indicators.
+        
+        Returns:
+            pd.DataFrame: Macro features
+        """
+        try:
+            features = pd.DataFrame(index=self.macro_data.index)
+            
+            # Resample macro data to daily frequency and forward fill
+            macro_daily = self.macro_data.resample('D').ffill()
+            
+            # Compute features for each macro indicator
+            for col in macro_daily.columns:
+                # Level
+                features[f'macro_{col}_level'] = macro_daily[col]
+                
+                # Percentage change
+                pct_change = macro_daily[col].pct_change()
+                features[f'macro_{col}_pct_change'] = pct_change.clip(-1, 1)
+                
+                # Z-score
+                mean = macro_daily[col].rolling(252).mean()  # 1-year rolling mean
+                std = macro_daily[col].rolling(252).std()    # 1-year rolling std
+                zscore = (macro_daily[col] - mean) / std
+                features[f'macro_{col}_zscore'] = zscore.replace([np.inf, -np.inf], np.nan)
+                
+                # Distance from mean
+                features[f'macro_{col}_dist_mean'] = macro_daily[col] - mean
+            
+            # Reindex to match treasury data index
+            features = features.reindex(self.treasury_data.index)
+            
+            # Forward fill and backward fill NaN values
+            features = features.ffill(limit=5).bfill(limit=5)
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error computing macro features: {str(e)}")
+            return pd.DataFrame(index=self.treasury_data.index)
+
     def _compute_targets(self) -> pd.DataFrame:
         """
         Compute regression and classification targets.
@@ -297,6 +339,14 @@ class FeatureEngineer:
             # Compute calendar features
             self._compute_calendar_features()
             logger.info(f"After calendar features: {self.features.shape}")
+            
+            # Compute macro features
+            macro_features = self._compute_macro_features()
+            if not macro_features.empty:
+                self.features = pd.concat([self.features, macro_features], axis=1)
+                logger.info(f"After macro features: {self.features.shape}")
+            else:
+                logger.warning("No macro features generated")
             
             # Compute trend features for each treasury series
             for col in self.treasury_data.columns:
