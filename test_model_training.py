@@ -64,33 +64,16 @@ def main():
         model_type='rf'  # Using Random Forest for initial test
     )
     
-    # Load data
-    features, target = trainer.load_data()
-    if features is None or target is None:
-        logging.error("Failed to load data. Exiting.")
-        return
-    
-    logging.info(f"Successfully loaded data:")
-    logging.info(f"Features shape: {features.shape}")
-    logging.info(f"Target shape: {target.shape}")
-    logging.info(f"Date range: {features.index.min()} to {features.index.max()}")
-    
-    # Create and train model
-    trainer.create_model()
-    results = trainer.walk_forward_validation()
+    # Train model using unified train method
+    results = trainer.train()
     
     if results is None:
-        logging.error("Walk-forward validation failed. Exiting.")
+        logging.error("Training failed. Exiting.")
         return
-    
-    # Save results
-    trainer.save_results(results)
-    trainer.save_model()
     
     # Log summary
     logging.info(f"Test training completed for 2s10s spread with next-day prediction")
-    logging.info(f"Average MSE: {np.mean(results['mse']):.6f}")
-    logging.info(f"Standard Deviation MSE: {np.std(results['mse']):.6f}")
+    logging.info(f"MSE: {results['mse']:.6f}")
     
     if hasattr(trainer.model, 'feature_importances_'):
         logging.info(f"Top 5 features by importance:")
