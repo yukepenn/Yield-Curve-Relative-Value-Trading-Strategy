@@ -592,3 +592,24 @@ This document maintains a chronological record of all changes made to the Yield 
   - Best performing spread: 2s10s (RF: MSE=13.78, XGB: MSE=16.86)
   - Direction prediction accuracy: 55-58%
   - Ternary classification accuracy: 43-44%
+
+2024-04-08 10:00 EDT
+- Enhanced model_training.py with LSTM implementation and hyperparameter tuning
+- Added comprehensive hyperparameter grids for all models (Ridge, Lasso, Random Forest, XGBoost, LSTM)
+- Implemented proper model saving and loading for both PyTorch and scikit-learn models
+- Added error handling and logging throughout the training pipeline
+- Moved train_all_models.py to tests/ folder for better organization
+- Updated model evaluation metrics to include best hyperparameters
+- Added early stopping and patience for LSTM training
+- Improved walk-forward validation with hyperparameter tuning
+- Added support for GPU training when available
+
+## 2024-04-07 22:45 EDT
+- Enhanced model training results saving functionality
+  - Added comprehensive feature information to saved results
+  - Improved metrics tracking including MSE, accuracy, F1, and ROC AUC
+  - Added feature importance tracking and saving
+  - Implemented better error handling and logging
+  - Organized results directory structure for better analysis
+  - Added support for saving predictions and actual values
+  - Included best hyperparameters in saved results
