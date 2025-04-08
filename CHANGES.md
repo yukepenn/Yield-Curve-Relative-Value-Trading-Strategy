@@ -78,9 +78,26 @@ This document maintains a chronological record of all changes made to the Yield 
 #### Feature Selection Results
 - Documented feature selection process for each spread and strategy
 - Recorded number of selected features:
-  - Next Day: ~85-88 features
-  - Direction: ~85-88 features
-  - Ternary: ~21 features
+  - 2s10s:
+    - Next Day: 310 features
+    - Direction: 284 features
+    - Ternary: 315 features
+  - 5s30s:
+    - Next Day: 88 features
+    - Direction: 87 features
+    - Ternary: 88 features
+  - 2s5s:
+    - Next Day: 88 features
+    - Direction: 88 features
+    - Ternary: 88 features
+  - 10s30s:
+    - Next Day: 87 features
+    - Direction: 87 features
+    - Ternary: 0 features (no meaningful classification)
+  - 3m10y:
+    - Next Day: 88 features
+    - Direction: 88 features
+    - Ternary: 21 features
 - Identified key features for each prediction type
 
 ### 16:50 EDT
@@ -505,3 +522,73 @@ This document maintains a chronological record of all changes made to the Yield 
     * Spread-specific features prominent
     * Feature importance scores generally low
     * Significant redundancy in feature set
+
+### Model Training Code
+- Feat(training): Enhanced model training with feature selection
+  - Added load_selected_features() method
+  - Modified load_data() to use selected features
+  - Enhanced error handling and logging
+  
+- Feat(storage): Improved results storage
+  - New save_results() method with detailed metrics
+  - JSON format for better readability
+  - Includes feature information and importance
+  
+- Refactor(training): Streamlined training workflow
+  - Simplified train() method
+  - Better error handling
+  - More detailed logging
+
+## [2024-04-03] Feature Engineering Update
+- Added macro features to feature engineering pipeline
+- Generated 1,123 features including:
+  - Calendar features (day_of_week, day_of_month, etc.)
+  - Technical indicators for treasury yields and spreads
+  - Macro indicators with various transformations
+- Generated 15 targets for different spreads and prediction types
+- Implemented proper NaN handling and data cleaning
+- Saved processed data to data/processed/ directory
+- Added feature statistics for analysis
+
+## [2024-04-07] Feature Analysis Update
+- Completed comprehensive feature analysis for all spreads
+- Generated detailed analysis for:
+  - 2s10s spread (next_day, direction, ternary)
+  - 5s30s spread (next_day)
+  - 10s30s spread (next_day)
+  - 3m10y spread (next_day)
+- Key findings:
+  - Total features: 1,123
+  - Redundant features: 504
+  - Selected features: 258-290 per spread
+  - Calendar features (is_day_before_holiday) consistently important
+  - Technical indicators (zscore, vol, pct_change) dominate top features
+  - Cross-spread features show significance
+  - Feature importance scores generally low (0.0018-0.0033)
+- Analysis results saved in results/feature_analysis/ directory
+- Generated summary.json files for each spread and prediction type
+- Identified top 10 features for each spread and prediction type
+
+## 2024-04-07 22:38 EDT
+
+### Model Training and Testing
+- Completed model training for all spreads and prediction types
+- Implemented comprehensive model training framework:
+  - Random Forest and XGBoost models
+  - Walk-forward validation with 5 splits
+  - Feature importance tracking
+  - Performance metrics for each model type
+- Generated results for all combinations:
+  - 2s10s: next_day, direction, ternary
+  - 5s30s: next_day, direction, ternary
+  - 2s5s: next_day, direction, ternary
+  - 10s30s: next_day, direction (ternary skipped)
+  - 3m10y: next_day, direction, ternary
+- Saved all models and results:
+  - Model pickles in `results/model_pickles/`
+  - Training results in `results/model_training/`
+  - Summary in `results/model_training/all_models_summary.json`
+- Key findings:
+  - Best performing spread: 2s10s (RF: MSE=13.78, XGB: MSE=16.86)
+  - Direction prediction accuracy: 55-58%
+  - Ternary classification accuracy: 43-44%

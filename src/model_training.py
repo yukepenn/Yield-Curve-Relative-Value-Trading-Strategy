@@ -16,6 +16,7 @@ from sklearn.utils.class_weight import compute_class_weight
 import xgboost as xgb
 import joblib
 import logging
+import json
 from datetime import datetime
 
 # Configure logging
@@ -58,9 +59,24 @@ class ModelTrainer:
         
         logging.info(f"Initialized ModelTrainer for {spread} {prediction_type} with {model_type}")
     
+    def load_selected_features(self) -> List[str]:
+        """Load selected features from feature analysis results."""
+        feature_file = Path(f'results/feature_analysis/y_{self.spread}_{self.prediction_type}/selected_features.csv')
+        if not feature_file.exists():
+            logging.error(f"Selected features file not found at {feature_file}")
+            return None
+        selected_features = pd.read_csv(feature_file)['0'].tolist()  # Use the second column with header '0'
+        logging.info(f"Loaded {len(selected_features)} selected features")
+        return selected_features
+    
     def load_data(self):
-        """Load and prepare the data."""
+        """Load and prepare the data with selected features."""
         try:
+            # Load selected features
+            selected_features = self.load_selected_features()
+            if selected_features is None:
+                return None, None
+            
             # Load features and targets
             features_path = Path('data/processed/features.csv')
             targets_path = Path('data/processed/targets.csv')
@@ -73,59 +89,49 @@ class ModelTrainer:
                 return None, None
             
             # Load data with datetime index
-            features = pd.read_csv(features_path)
-            targets = pd.read_csv(targets_path)
+            features = pd.read_csv(features_path, index_col=0)  # Use first column as index
+            targets = pd.read_csv(targets_path, index_col=0)  # Use first column as index
             
             # Convert index to datetime
-            features.index = pd.to_datetime(features.iloc[:, 0])
-            targets.index = pd.to_datetime(targets.iloc[:, 0])
+            features.index = pd.to_datetime(features.index)
+            targets.index = pd.to_datetime(targets.index)
             
-            # Drop the date column since it's now in the index
-            features = features.drop(features.columns[0], axis=1)
-            targets = targets.drop(targets.columns[0], axis=1)
+            # Filter features to only selected ones
+            try:
+                features = features[selected_features]
+            except KeyError as e:
+                logging.error(f"Some selected features not found in features data: {e}")
+                return None, None
             
-            # Log data shapes
-            logging.info(f"Loaded features shape: {features.shape}")
-            logging.info(f"Loaded targets shape: {targets.shape}")
+            # Get target column name
+            target_col = f'y_{self.spread}_{self.prediction_type}'
+            if target_col not in targets.columns:
+                logging.error(f"Target column {target_col} not found in targets data")
+                return None, None
             
             # Align features and targets
             common_index = features.index.intersection(targets.index)
-            if len(common_index) == 0:
-                logging.error("No common dates between features and targets")
-                return None, None
-            
             features = features.loc[common_index]
-            targets = targets.loc[common_index]
+            target = targets.loc[common_index, target_col]
             
-            # Log aligned shapes
-            logging.info(f"Aligned features shape: {features.shape}")
-            logging.info(f"Aligned targets shape: {targets.shape}")
-            
-            # Get target column
-            target_col = f'y_{self.spread}_{self.prediction_type}'
-            if target_col not in targets.columns:
-                logging.error(f"Target column {target_col} not found")
-                return None, None
-            
-            # Store features and target as instance variables
-            self.features = features
-            self.target = targets[target_col]
-            
-            # Scale features for linear models
+            # Scale features if using linear models
             if self.model_type in ['ridge', 'lasso']:
-                self.features = pd.DataFrame(
-                    self.scaler.fit_transform(self.features),
-                    index=self.features.index,
-                    columns=self.features.columns
+                features = pd.DataFrame(
+                    self.scaler.fit_transform(features),
+                    index=features.index,
+                    columns=features.columns
                 )
             
-            logging.info(f"Loaded {len(self.features)} samples with {self.features.shape[1]} features")
-            logging.info(f"Date range: {self.features.index.min()} to {self.features.index.max()}")
-            return self.features, self.target
+            self.features = features
+            self.target = target
+            
+            logging.info(f"Loaded {len(features)} samples with {len(features.columns)} features")
+            logging.info(f"Date range: {features.index.min()} to {features.index.max()}")
+            
+            return features, target
             
         except Exception as e:
-            logging.error(f"Error loading data: {str(e)}")
-            logging.error(f"Error details: {e.__class__.__name__}")
+            logging.error(f"Error loading data: {e}")
             return None, None
     
     def create_model(self) -> None:
@@ -160,12 +166,11 @@ class ModelTrainer:
                     self.model = xgb.XGBClassifier(
                         objective='multi:softmax',
                         num_class=3,
-                        scale_pos_weight=class_weights[1:].mean()/class_weights[0],
                         random_state=42
                     )
                 else:
                     self.model = xgb.XGBClassifier(
-                        scale_pos_weight=class_weights[1]/class_weights[0],
+                        objective='binary:logistic',
                         random_state=42
                     )
         
@@ -234,7 +239,7 @@ class ModelTrainer:
             
             # Calculate average metrics
             self.results = {
-                'mse': np.mean(results['mse']) if results['mse'] else None,
+                'mse': results['mse'] if results['mse'] else None,  # Store all MSE values
                 'accuracy': np.mean(results['accuracy']) if results['accuracy'] else None,
                 'f1': np.mean(results['f1']) if results['f1'] else None,
                 'roc_auc': np.mean(results['roc_auc']) if results['roc_auc'] else None,
@@ -252,26 +257,53 @@ class ModelTrainer:
             return None
     
     def save_model(self) -> None:
-        """Save trained model and results."""
-        # Save model
-        model_path = self.models_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}.joblib"
-        joblib.dump(self.model, model_path)
+        """Save trained model to disk."""
+        model_file = self.models_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}.pkl"
+        joblib.dump(self.model, model_file)
+        logging.info(f"Saved model to {model_file}")
+    
+    def save_results(self, results: Dict) -> None:
+        """Save training results with feature information."""
+        results_dir = self.results_dir / f"{self.spread}_{self.prediction_type}"
+        results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save scaler if used
-        if self.model_type in ['ridge', 'lasso']:
-            scaler_path = self.models_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}_scaler.joblib"
-            joblib.dump(self.scaler, scaler_path)
+        # Save metrics
+        metrics = {
+            'spread': self.spread,
+            'prediction_type': self.prediction_type,
+            'model_type': self.model_type,
+            'num_features': len(self.features.columns),
+            'selected_features': list(self.features.columns),
+            'mse': results.get('mse'),
+            'accuracy': results.get('accuracy'),
+            'f1': results.get('f1'),
+            'roc_auc': results.get('roc_auc'),
+            'feature_importance': results.get('feature_importance', {}).to_dict() if isinstance(results.get('feature_importance'), pd.Series) else {}
+        }
         
-        # Save results
-        results_path = self.results_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}_results.csv"
-        pd.DataFrame(self.results).to_csv(results_path)
+        # Save to JSON
+        results_file = results_dir / f"{self.model_type}_results.json"
+        with open(results_file, 'w') as f:
+            json.dump(metrics, f, indent=4)
         
-        # Save feature importance if available
-        if self.results['feature_importance'] is not None:
-            importance_path = self.results_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}_importance.csv"
-            self.results['feature_importance'].to_csv(importance_path)
+        logging.info(f"Saved results to {results_file}")
+    
+    def train(self):
+        """Train model with selected features."""
+        # Load data with selected features
+        features, target = self.load_data()
+        if features is None or target is None:
+            return
         
-        logging.info(f"Saved model and results to {model_path} and {results_path}")
+        # Create model
+        self.create_model()
+        
+        # Perform walk-forward validation
+        results = self.walk_forward_validation()
+        
+        # Save model and results
+        self.save_model()
+        self.save_results(results)
 
     @staticmethod
     def run_batch_training():
@@ -335,30 +367,6 @@ class ModelTrainer:
             logging.info("Training completed. Summary saved to results/model_training/summary_results.csv")
         else:
             logging.error("No successful training runs to summarize")
-
-    def train(self):
-        """Train the model and save results."""
-        try:
-            # Load data
-            X, y = self.load_data()
-            if X is None or y is None:
-                raise ValueError("Failed to load data")
-            
-            # Create model
-            self.create_model()
-            
-            # Perform walk-forward validation
-            results = self.walk_forward_validation()
-            
-            # Save model and results
-            self.save_model()
-            
-            logging.info(f"Successfully trained {self.spread} {self.prediction_type} with {self.model_type}")
-            return results
-            
-        except Exception as e:
-            logging.error(f"Error training {self.spread} {self.prediction_type} with {self.model_type}: {str(e)}")
-            return None
 
 if __name__ == "__main__":
     ModelTrainer.run_batch_training() 
