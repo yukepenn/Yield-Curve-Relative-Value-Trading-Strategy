@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
-from sklearn.base import BaseEstimator
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV, RandomizedSearchCV
@@ -27,7 +26,6 @@ from statsmodels.tsa.stattools import adfuller
 from pmdarima import auto_arima
 import warnings
 from itertools import product
-import time
 warnings.filterwarnings('ignore')
 
 # Configure logging
@@ -43,15 +41,10 @@ logging.basicConfig(
 
 class TimeSeriesDataset(Dataset):
     """Dataset for LSTM model."""
-    def __init__(self, features, targets, seq_length=10, prediction_type='next_day'):
-        self.features = torch.FloatTensor(features)
-        # Handle different target types based on prediction type
-        if prediction_type == 'next_day':
-            self.targets = torch.FloatTensor(targets)
-        else:  # classification tasks
-            self.targets = torch.LongTensor(targets.astype(np.int64))
+    def __init__(self, features, targets, seq_length=10):
+        self.features = torch.FloatTensor(features.values)
+        self.targets = torch.FloatTensor(targets.values)
         self.seq_length = seq_length
-        self.prediction_type = prediction_type
         
     def __len__(self):
         return len(self.features) - self.seq_length
@@ -81,9 +74,8 @@ class LSTMModel(nn.Module):
         
     def forward(self, x):
         # Initialize hidden state with zeros
-        batch_size = x.size(0)
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
             
         # Forward propagate LSTM
         out, _ = self.lstm(x, (h0, c0))
@@ -234,22 +226,11 @@ class HyperparameterTuner:
     
     @staticmethod
     def tune_deep_learning(model_type: str, features: pd.DataFrame, target: pd.Series, 
-                          train_idx: np.ndarray, val_idx: np.ndarray, prediction_type: str) -> Dict:
+                          train_idx: np.ndarray, val_idx: np.ndarray) -> Dict:
         """Tune deep learning models (MLP, LSTM) using validation set."""
         param_grid = HyperparameterTuner.get_param_grid(model_type)
         best_params = None
         best_val_loss = float('inf')
-        
-        # Determine output size based on prediction type
-        if prediction_type == 'next_day':
-            output_size = 1
-            criterion = nn.MSELoss()
-        elif prediction_type == 'direction':
-            output_size = 2
-            criterion = nn.CrossEntropyLoss()
-        else:  # ternary
-            output_size = 3
-            criterion = nn.CrossEntropyLoss()
         
         # Create parameter combinations
         param_combinations = [dict(zip(param_grid.keys(), v)) 
@@ -261,7 +242,7 @@ class HyperparameterTuner:
                     model = MLPModel(
                         input_size=len(features.columns),
                         hidden_sizes=params['hidden_sizes'],
-                        output_size=output_size,
+                        output_size=1,  # For regression
                         dropout=params['dropout']
                     )
                 elif model_type == 'lstm':
@@ -269,23 +250,19 @@ class HyperparameterTuner:
                         input_size=len(features.columns),
                         hidden_size=params['hidden_size'],
                         num_layers=params['num_layers'],
-                        output_size=output_size,
+                        output_size=1,  # For regression
                         dropout=params['dropout']
                     )
                 
                 # Train model with current parameters
                 optimizer = torch.optim.Adam(model.parameters(), lr=params['learning_rate'])
+                criterion = nn.MSELoss()
                 
-                # Prepare data with proper tensor types
+                # Prepare data
                 X_train = torch.FloatTensor(features.iloc[train_idx].values)
+                y_train = torch.FloatTensor(target.iloc[train_idx].values)
                 X_val = torch.FloatTensor(features.iloc[val_idx].values)
-                
-                if prediction_type == 'next_day':
-                    y_train = torch.FloatTensor(target.iloc[train_idx].values)
-                    y_val = torch.FloatTensor(target.iloc[val_idx].values)
-                else:
-                    y_train = torch.LongTensor(target.iloc[train_idx].values.astype(np.int64))
-                    y_val = torch.LongTensor(target.iloc[val_idx].values.astype(np.int64))
+                y_val = torch.FloatTensor(target.iloc[val_idx].values)
                 
                 # Create dataloaders
                 train_dataset = TensorDataset(X_train, y_train)
@@ -301,7 +278,6 @@ class HyperparameterTuner:
                 for epoch in range(100):  # Max epochs
                     model.train()
                     for batch_X, batch_y in train_loader:
-                        batch_X, batch_y = batch_X.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu')), batch_y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
                         optimizer.zero_grad()
                         outputs = model(batch_X)
                         loss = criterion(outputs, batch_y)
@@ -313,7 +289,6 @@ class HyperparameterTuner:
                     val_loss = 0
                     with torch.no_grad():
                         for batch_X, batch_y in val_loader:
-                            batch_X, batch_y = batch_X.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu')), batch_y.to(torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
                             outputs = model(batch_X)
                             val_loss += criterion(outputs, batch_y).item()
                     val_loss /= len(val_loader)
@@ -336,9 +311,9 @@ class HyperparameterTuner:
         return best_params
 
 class ModelTrainer:
-    """Class to handle model training and evaluation."""
+    """Base class for model training with walk-forward validation."""
     
-    def __init__(self, spread: str, prediction_type: str, model_type: str, epochs: int = 100):
+    def __init__(self, spread: str, prediction_type: str, model_type: str, tune_hyperparameters: bool = True):
         """
         Initialize ModelTrainer.
         
@@ -346,14 +321,12 @@ class ModelTrainer:
             spread: Name of the spread ('2s10s', '5s30s', '2s5s', '10s30s', '3m10y')
             prediction_type: Type of prediction ('next_day', 'direction', 'ternary')
             model_type: Type of model ('ridge', 'lasso', 'rf', 'xgb', 'lstm', 'mlp', 'arima')
-            epochs: Number of training epochs
+            tune_hyperparameters: Whether to perform hyperparameter tuning
         """
         self.spread = spread
         self.prediction_type = prediction_type
         self.model_type = model_type
-        self.epochs = epochs
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.tune_hyperparameters = True
+        self.tune_hyperparameters = tune_hyperparameters
         self.model = None
         self.scaler = StandardScaler()
         self.features = None
@@ -367,6 +340,8 @@ class ModelTrainer:
             self.dropout = 0.2
             self.learning_rate = 0.001
             self.batch_size = 32
+            self.epochs = 100
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             self.target_scaler = MinMaxScaler()
         
         # LSTM hyperparameters (will be updated if tuning is enabled)
@@ -377,6 +352,7 @@ class ModelTrainer:
             self.learning_rate = 0.001
             self.batch_size = 32
             self.sequence_length = 63
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             self.target_scaler = MinMaxScaler()
         
         # Create directories for saving models and results
@@ -479,26 +455,9 @@ class ModelTrainer:
                 self.model = RandomForestRegressor(**params)
             elif self.model_type == 'xgb':
                 params = self.best_params if self.best_params else {
-                    'random_state': 42,
-                    'early_stopping_rounds': 10
+                    'random_state': 42
                 }
-                if self.prediction_type == 'ternary':
-                    params.update({
-                        'objective': 'multi:softprob',
-                        'num_class': 3,
-                        'eval_metric': 'mlogloss'
-                    })
-                elif self.prediction_type == 'direction':
-                    params.update({
-                        'objective': 'binary:logistic',
-                        'eval_metric': 'logloss'
-                    })
-                else:  # next_day
-                    params.update({
-                        'objective': 'reg:squarederror',
-                        'eval_metric': 'rmse'
-                    })
-                self.model = xgb.XGBClassifier(**params) if self.prediction_type != 'next_day' else xgb.XGBRegressor(**params)
+                self.model = xgb.XGBRegressor(**params)
         
         elif self.prediction_type in ['direction', 'ternary']:
             # Handle class imbalance
@@ -691,36 +650,16 @@ class ModelTrainer:
             target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1))
             target_val = target_val.flatten()
         else:
-            # For classification tasks, convert to Long tensor
-            target_train = target.iloc[train_idx].values.astype(np.int64)
-            target_val = target.iloc[val_idx].values.astype(np.int64)
+            target_train = target.iloc[train_idx].values
+            target_val = target.iloc[val_idx].values
         
-        # Create datasets with proper sequence length
-        train_dataset = TimeSeriesDataset(
-            scaled_features, 
-            target_train, 
-            seq_length=self.sequence_length,
-            prediction_type=self.prediction_type
-        )
-        val_dataset = TimeSeriesDataset(
-            scaled_features_val, 
-            target_val, 
-            seq_length=self.sequence_length,
-            prediction_type=self.prediction_type
-        )
+        # Create datasets
+        train_dataset = TimeSeriesDataset(scaled_features, target_train, self.sequence_length)
+        val_dataset = TimeSeriesDataset(scaled_features_val, target_val, self.sequence_length)
         
         # Create dataloaders
-        train_loader = DataLoader(
-            train_dataset, 
-            batch_size=self.batch_size, 
-            shuffle=True,
-            drop_last=True  # Drop last incomplete batch
-        )
-        val_loader = DataLoader(
-            val_dataset, 
-            batch_size=self.batch_size,
-            drop_last=True  # Drop last incomplete batch
-        )
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
         
         return train_loader, val_loader
 
@@ -735,12 +674,7 @@ class ModelTrainer:
             
             # Forward pass
             outputs = model(batch_features)
-            
-            # Handle different loss functions based on prediction type
-            if self.prediction_type == 'next_day':
-                loss = criterion(outputs.squeeze(), batch_targets)
-            else:
-                loss = criterion(outputs, batch_targets)
+            loss = criterion(outputs, batch_targets)
             
             # Backward and optimize
             optimizer.zero_grad()
@@ -762,13 +696,7 @@ class ModelTrainer:
                 batch_targets = batch_targets.to(self.device)
                 
                 outputs = model(batch_features)
-                
-                # Handle different loss functions based on prediction type
-                if self.prediction_type == 'next_day':
-                    loss = criterion(outputs.squeeze(), batch_targets)
-                else:
-                    loss = criterion(outputs, batch_targets)
-                
+                loss = criterion(outputs, batch_targets)
                 total_loss += loss.item()
                 
         return total_loss / len(val_loader)
@@ -1038,32 +966,22 @@ class ModelTrainer:
             target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1))
             target_val = target_val.flatten()
         else:
-            # For classification tasks, convert to Long tensor
-            target_train = target.iloc[train_idx].values.astype(np.int64)
-            target_val = target.iloc[val_idx].values.astype(np.int64)
+            target_train = target.iloc[train_idx].values
+            target_val = target.iloc[val_idx].values
         
-        # Convert to PyTorch tensors with proper types
+        # Convert to PyTorch tensors
         X_train = torch.FloatTensor(scaled_features)
-        y_train = torch.LongTensor(target_train) if self.prediction_type != 'next_day' else torch.FloatTensor(target_train)
+        y_train = torch.FloatTensor(target_train)
         X_val = torch.FloatTensor(scaled_features_val)
-        y_val = torch.LongTensor(target_val) if self.prediction_type != 'next_day' else torch.FloatTensor(target_val)
+        y_val = torch.FloatTensor(target_val)
         
         # Create datasets
         train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
         val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
         
-        # Create dataloaders with proper batch handling
-        train_loader = DataLoader(
-            train_dataset, 
-            batch_size=self.batch_size, 
-            shuffle=True,
-            drop_last=True  # Drop last incomplete batch
-        )
-        val_loader = DataLoader(
-            val_dataset, 
-            batch_size=self.batch_size,
-            drop_last=True  # Drop last incomplete batch
-        )
+        # Create dataloaders
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
         
         return train_loader, val_loader
 
@@ -1078,12 +996,7 @@ class ModelTrainer:
             
             # Forward pass
             outputs = model(batch_features)
-            
-            # Handle different loss functions based on prediction type
-            if self.prediction_type == 'next_day':
-                loss = criterion(outputs.squeeze(), batch_targets)
-            else:
-                loss = criterion(outputs, batch_targets)
+            loss = criterion(outputs, batch_targets)
             
             # Backward and optimize
             optimizer.zero_grad()
@@ -1105,13 +1018,7 @@ class ModelTrainer:
                 batch_targets = batch_targets.to(self.device)
                 
                 outputs = model(batch_features)
-                
-                # Handle different loss functions based on prediction type
-                if self.prediction_type == 'next_day':
-                    loss = criterion(outputs.squeeze(), batch_targets)
-                else:
-                    loss = criterion(outputs, batch_targets)
-                
+                loss = criterion(outputs, batch_targets)
                 total_loss += loss.item()
                 
         return total_loss / len(val_loader)
@@ -1311,8 +1218,7 @@ class ModelTrainer:
                         self.features,
                         self.target,
                         train_idx,
-                        val_idx,
-                        self.prediction_type
+                        val_idx
                     )
                     break  # Only use first split for tuning to save time
                 

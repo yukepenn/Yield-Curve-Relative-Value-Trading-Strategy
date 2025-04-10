@@ -738,3 +738,50 @@ This document maintains a chronological record of all changes made to the Yield 
   - Added proper batch size handling in TimeSeriesDataset
   - Updated ModelTrainer initialization with epochs parameter
   - Improved error handling and logging
+
+## 2024-04-07 23:30 EDT
+- Fix data type handling in feature engineering and model training:
+  - Added explicit data type conversion in feature engineering
+  - Updated MLP data preparation with proper type validation
+  - Fixed tensor type handling for classification tasks
+  - Added error handling for non-numeric data
+  - Improved data validation and logging
+
+## 2024-04-07 23:45 EDT
+- Fixed LSTM model implementation:
+  - Corrected tensor dimension handling in TimeSeriesDataset
+  - Fixed data type conversion in LSTM data preparation
+  - Improved error handling in model training
+  - Added proper batch size handling
+  - Fixed sequence length handling
+  - Added drop_last=True to DataLoader to handle incomplete batches
+  - Improved logging and error messages
+
+## 2024-04-09 03:00 EDT
+- Fixed LSTM model implementation:
+  - Added proper tensor dimension handling in TimeSeriesDataset
+  - Fixed data shape handling in LSTM training and validation
+  - Added feature dimension handling in data loaders
+  - Improved error handling in model training
+  - Fixed batch processing in LSTM model
+  - Added proper tensor shape validation
+  - Improved logging and error messages
+
+## 2024-04-09 03:15 EDT
+- Fixed LSTM model implementation:
+  - Added proper tensor dimension handling in TimeSeriesDataset
+  - Fixed data shape handling in LSTM training and validation
+  - Added feature dimension handling in data loaders
+  - Improved error handling in model training
+  - Fixed batch processing in LSTM model
+  - Added proper tensor shape validation
+  - Improved logging and error messages
+
+## 2024-04-09 03:30 EDT
+- Fixed LSTM model implementation:
+  - Corrected hidden state initialization in LSTMModel
+  - Fixed tensor dimension handling in forward pass
+  - Updated data shape handling in training and validation
+  - Added proper weight initialization
+  - Improved binary classification handling with sigmoid
+  - Fixed batch processing in data loaders
