@@ -390,6 +390,10 @@ class FeatureEngineer:
             self.targets = self.targets.ffill(limit=5).bfill(limit=5)
             logger.info(f"After filling NaNs: {self.features.shape}")
             
+            # Ensure all features are numeric
+            for col in self.features.columns:
+                self.features[col] = pd.to_numeric(self.features[col], errors='coerce')
+            
             # Cap extreme values at 5 standard deviations
             for col in self.features.columns:
                 if self.features[col].dtype in ['float64', 'float32', 'int64', 'int32']:
