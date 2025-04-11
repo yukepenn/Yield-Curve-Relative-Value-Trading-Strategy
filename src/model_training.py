@@ -61,7 +61,7 @@ logging.basicConfig(
 
 class TimeSeriesDataset(Dataset):
     """Dataset for LSTM model."""
-    def __init__(self, features, targets, seq_length=10):
+    def __init__(self, features, targets, seq_length=10, classification: bool = False):
         # Convert features to numpy array if it's a pandas DataFrame/Series
         if hasattr(features, 'values'):
             features = features.values
@@ -71,12 +71,18 @@ class TimeSeriesDataset(Dataset):
         # Ensure data is numeric and handle missing values
         try:
             features = np.array(features, dtype=np.float32)
-            targets = np.array(targets, dtype=np.float32)
+            if classification:
+                targets = np.array(targets, dtype=np.int64)  # Use int64 for classification
+            else:
+                targets = np.array(targets, dtype=np.float32)  # Use float32 for regression
         except (ValueError, TypeError) as e:
-            logging.error(f"Error converting data to float32: {str(e)}")
-            # Try to handle non-numeric data by converting to float
+            logging.error(f"Error converting data to appropriate type: {str(e)}")
+            # Try to handle non-numeric data by converting to appropriate type
             features = pd.DataFrame(features).apply(pd.to_numeric, errors='coerce').fillna(0).astype(np.float32)
-            targets = pd.Series(targets).apply(pd.to_numeric, errors='coerce').fillna(0).astype(np.float32)
+            if classification:
+                targets = pd.Series(targets).apply(pd.to_numeric, errors='coerce').fillna(0).astype(np.int64)
+            else:
+                targets = pd.Series(targets).apply(pd.to_numeric, errors='coerce').fillna(0).astype(np.float32)
             
         # Fill missing values with 0
         features = np.nan_to_num(features, nan=0.0)
@@ -86,9 +92,9 @@ class TimeSeriesDataset(Dataset):
         if len(features.shape) == 1:
             features = features.reshape(-1, 1)
             
-        # Convert to float32 tensors
+        # Convert to appropriate tensors
         self.features = torch.FloatTensor(features)
-        self.targets = torch.FloatTensor(targets)
+        self.targets = torch.LongTensor(targets) if classification else torch.FloatTensor(targets)
         self.seq_length = seq_length
         
     def __len__(self):
@@ -455,7 +461,7 @@ class ModelTrainer:
         # Set paths
         self.data_dir = Path('data/processed')
         self.models_dir = Path('models')
-        self.results_dir = Path('results')
+        self.results_dir = Path('results/model_training')
         
         # Create directories if they don't exist
         self.models_dir.mkdir(parents=True, exist_ok=True)
@@ -553,6 +559,25 @@ class ModelTrainer:
             features = features.loc[common_index]
             target = targets.loc[common_index, target_col]
             
+            # For classification tasks, remap target values and update output_size accordingly
+            if self.prediction_type in ['direction', 'ternary']:
+                # Get unique values and create mapping
+                unique_vals = np.unique(target)
+                mapping = {val: i for i, val in enumerate(sorted(unique_vals))}
+                
+                # Log the mapping for debugging
+                logging.info(f"Classification mapping for {self.prediction_type}: {mapping}")
+                
+                # Remap the targets
+                target = target.map(mapping)
+                
+                # Set output_size to number of classes
+                self.output_size = len(mapping)
+                logging.info(f"Set output_size to {self.output_size} for {self.prediction_type} classification")
+            else:
+                # For regression, output_size is 1
+                self.output_size = 1
+            
             # Scale features if using linear models
             if self.model_type in ['ridge', 'lasso']:
                 features = pd.DataFrame(
@@ -564,12 +589,12 @@ class ModelTrainer:
             self.features = features
             self.target = target
             
-            # Set model dimensions
+            # Set input size
             self.input_size = len(features.columns)
-            self.output_size = 1  # Single target value
             
             logging.info(f"Loaded {len(features)} samples with {len(features.columns)} features")
             logging.info(f"Date range: {features.index.min()} to {features.index.max()}")
+            logging.info(f"Target range: {target.min()} to {target.max()}")
             
             return features, target
             
@@ -778,49 +803,30 @@ class ModelTrainer:
             logging.error(f"Error creating LSTM model: {str(e)}")
             raise
 
-    def _prepare_lstm_data(self, features: pd.DataFrame, target: pd.Series, train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
-        """
-        Prepare data for LSTM model using walk-forward validation indices.
-        
-        Args:
-            features: Feature DataFrame
-            target: Target Series
-            train_idx: Training data indices
-            val_idx: Validation data indices
-            
-        Returns:
-            Tuple of (train_loader, val_loader)
-        """
+    def _prepare_lstm_data(self, features: pd.DataFrame, target: pd.Series, 
+                         train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
         try:
-            # Ensure data is numeric
-            features = features.apply(pd.to_numeric, errors='coerce')
-            target = target.apply(pd.to_numeric, errors='coerce')
-            
-            # Scale features
+            # Convert features to numeric and scale
             scaled_features = self.feature_scaler.fit_transform(features.iloc[train_idx])
             scaled_features_val = self.feature_scaler.transform(features.iloc[val_idx])
             
-            # Scale target for regression
             if self.prediction_type == 'next_day':
-                target_train = self.target_scaler.fit_transform(target.iloc[train_idx].values.reshape(-1, 1))
-                target_train = target_train.flatten()
-                target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1))
-                target_val = target_val.flatten()
+                target_train = self.target_scaler.fit_transform(target.iloc[train_idx].values.reshape(-1, 1)).flatten()
+                target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1)).flatten()
+                classification = False
             else:
-                # For classification, ensure targets are integers
+                # For classification, convert targets to integers
                 target_train = target.iloc[train_idx].values.astype(np.int64)
                 target_val = target.iloc[val_idx].values.astype(np.int64)
+                classification = True
             
-            # Create datasets
-            train_dataset = TimeSeriesDataset(scaled_features, target_train, self.sequence_length)
-            val_dataset = TimeSeriesDataset(scaled_features_val, target_val, self.sequence_length)
+            train_dataset = TimeSeriesDataset(scaled_features, target_train, self.sequence_length, classification)
+            val_dataset = TimeSeriesDataset(scaled_features_val, target_val, self.sequence_length, classification)
             
-            # Create dataloaders with drop_last=True to handle incomplete batches
             train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True)
             val_loader = DataLoader(val_dataset, batch_size=self.batch_size, drop_last=True)
             
             return train_loader, val_loader
-            
         except Exception as e:
             logging.error(f"Error in LSTM data preparation: {str(e)}")
             return None, None
@@ -1142,48 +1148,38 @@ class ModelTrainer:
         
         return model
 
-    def _prepare_mlp_data(self, features: pd.DataFrame, target: pd.Series, train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
-        """
-        Prepare data for MLP model using walk-forward validation indices.
-        
-        Args:
-            features: Feature DataFrame
-            target: Target Series
-            train_idx: Training data indices
-            val_idx: Validation data indices
+    def _prepare_mlp_data(self, features: pd.DataFrame, target: pd.Series, 
+                          train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
+        try:
+            # Scale features
+            scaled_features = self.feature_scaler.fit_transform(features.iloc[train_idx])
+            scaled_features_val = self.feature_scaler.transform(features.iloc[val_idx])
             
-        Returns:
-            Tuple of (train_loader, val_loader)
-        """
-        # Scale features
-        scaled_features = self.feature_scaler.fit_transform(features.iloc[train_idx])
-        scaled_features_val = self.feature_scaler.transform(features.iloc[val_idx])
-        
-        # Scale target for regression
-        if self.prediction_type == 'next_day':
-            target_train = self.target_scaler.fit_transform(target.iloc[train_idx].values.reshape(-1, 1))
-            target_train = target_train.flatten()
-            target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1))
-            target_val = target_val.flatten()
-        else:
-            target_train = target.iloc[train_idx].values
-            target_val = target.iloc[val_idx].values
-        
-        # Convert to PyTorch tensors
-        X_train = torch.FloatTensor(scaled_features)
-        y_train = torch.FloatTensor(target_train)
-        X_val = torch.FloatTensor(scaled_features_val)
-        y_val = torch.FloatTensor(target_val)
-        
-        # Create datasets
-        train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
-        val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
-        
-        # Create dataloaders
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
-        
-        return train_loader, val_loader
+            if self.prediction_type == 'next_day':
+                target_train = self.target_scaler.fit_transform(target.iloc[train_idx].values.reshape(-1, 1)).flatten()
+                target_val = self.target_scaler.transform(target.iloc[val_idx].values.reshape(-1, 1)).flatten()
+                y_train = torch.FloatTensor(target_train)
+                y_val = torch.FloatTensor(target_val)
+            else:
+                # For classification, convert targets to integers
+                target_train = target.iloc[train_idx].values.astype(np.int64)
+                target_val = target.iloc[val_idx].values.astype(np.int64)
+                y_train = torch.LongTensor(target_train)
+                y_val = torch.LongTensor(target_val)
+            
+            X_train = torch.FloatTensor(scaled_features)
+            X_val = torch.FloatTensor(scaled_features_val)
+            
+            train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
+            val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
+            
+            train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
+            
+            return train_loader, val_loader
+        except Exception as e:
+            logging.error(f"Error in MLP data preparation: {str(e)}")
+            return None, None
 
     def _train_mlp_epoch(self, model: nn.Module, train_loader: DataLoader, criterion: nn.Module, optimizer: torch.optim.Optimizer) -> float:
         """Train MLP for one epoch."""
