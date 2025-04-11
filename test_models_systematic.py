@@ -1,5 +1,5 @@
 """
-Systematic testing of LSTM and MLP models for yield spread prediction.
+Systematic testing of models for yield spread prediction.
 This script tests models with comprehensive error handling and data validation.
 """
 
@@ -42,19 +42,46 @@ class NumpyEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, pd.Series):
+            return obj.to_dict()
+        elif isinstance(obj, pd.DataFrame):
+            return obj.to_dict()
+        elif isinstance(obj, (dict, list)):
+            # Recursively handle nested dictionaries and lists
+            if isinstance(obj, dict):
+                return {k: self.default(v) for k, v in obj.items()}
+            else:
+                return [self.default(v) for v in obj]
         return super(NumpyEncoder, self).default(obj)
 
+def ensure_json_serializable(obj):
+    """Helper function to ensure an object is JSON serializable."""
+    if isinstance(obj, pd.Series):
+        return obj.to_dict()
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return float(obj)
+    elif isinstance(obj, (dict, list)):
+        if isinstance(obj, dict):
+            return {k: ensure_json_serializable(v) for k, v in obj.items()}
+        else:
+            return [ensure_json_serializable(v) for v in obj]
+    return obj
+
 class SystematicTester:
-    """Class to handle systematic testing of LSTM and MLP models."""
+    """Class to handle systematic testing of models."""
     
-    def __init__(self, spread: str = '2s10s'):
+    def __init__(self, spreads: Optional[List[str]] = None):
         """
         Initialize SystematicTester.
         
         Args:
-            spread: Name of the spread to test ('2s10s')
+            spreads: List of spreads to test. If None, tests only 2s10s spread
         """
-        self.spread = spread
+        self.spreads = spreads if spreads else ['2s10s']
         self.results = {}
         self.errors = {}
         
@@ -67,16 +94,12 @@ class SystematicTester:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.error_logs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Set file paths
-        self.results_file = f"results/systematic_testing/{spread}_systematic_test_results.json"
-        self.errors_file = f"results/systematic_testing/{spread}_systematic_test_errors.json"
-        
-        # Create results directories
-        Path('results/systematic_testing').mkdir(parents=True, exist_ok=True)
-        
         # Define prediction types and models to test
-        self.prediction_types = ['next_day', 'direction', 'ternary']
-        self.model_types = ['lstm', 'mlp']
+        self.prediction_types = ['direction', 'ternary']
+        self.model_types = {
+            'direction': ['mlp', 'lstm'],
+            'ternary': ['mlp', 'lstm']
+        }
         
         # Initialize data paths
         self.data_paths = {
@@ -87,41 +110,55 @@ class SystematicTester:
         # Timestamp for unique filenames
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Load existing results if any
-        if os.path.exists(self.results_file):
-            try:
-                with open(self.results_file, 'r') as f:
-                    loaded_results = json.load(f)
-                if isinstance(loaded_results, dict):
-                    self.results = loaded_results
-                else:
-                    logging.warning("Loaded results file is not a dictionary. Reinitializing as empty dictionary.")
-                    self.results = {}
-            except Exception as e:
-                logging.error(f"Error loading results file: {e}")
-                self.results = {}
-                
-        # Load existing errors if any
-        if os.path.exists(self.errors_file):
-            try:
-                with open(self.errors_file, 'r') as f:
-                    loaded_errors = json.load(f)
-                if isinstance(loaded_errors, dict):
-                    self.errors = loaded_errors
-                else:
-                    logging.warning("Loaded errors file is not a dictionary. Reinitializing as empty dictionary.")
-                    self.errors = {}
-            except Exception as e:
-                logging.error(f"Error loading errors file: {e}")
-                self.errors = {}
+        # Initialize results and errors for each spread
+        for spread in self.spreads:
+            # Set file paths for this spread
+            results_file = f"results/systematic_testing/{spread}_systematic_test_results.json"
+            errors_file = f"results/systematic_testing/{spread}_systematic_test_errors.json"
+            
+            # Create results directories
+            Path('results/systematic_testing').mkdir(parents=True, exist_ok=True)
+            
+            # Load existing results if any
+            if os.path.exists(results_file):
+                try:
+                    with open(results_file, 'r') as f:
+                        loaded_results = json.load(f)
+                    if isinstance(loaded_results, dict):
+                        self.results[spread] = loaded_results
+                    else:
+                        logging.warning(f"Loaded results file for {spread} is not a dictionary. Reinitializing as empty dictionary.")
+                        self.results[spread] = {}
+                except Exception as e:
+                    logging.error(f"Error loading results file for {spread}: {e}")
+                    self.results[spread] = {}
+            else:
+                self.results[spread] = {}
+                    
+            # Load existing errors if any
+            if os.path.exists(errors_file):
+                try:
+                    with open(errors_file, 'r') as f:
+                        loaded_errors = json.load(f)
+                    if isinstance(loaded_errors, dict):
+                        self.errors[spread] = loaded_errors
+                    else:
+                        logging.warning(f"Loaded errors file for {spread} is not a dictionary. Reinitializing as empty dictionary.")
+                        self.errors[spread] = {}
+                except Exception as e:
+                    logging.error(f"Error loading errors file for {spread}: {e}")
+                    self.errors[spread] = {}
+            else:
+                self.errors[spread] = {}
         
-        logging.info(f"Initialized SystematicTester for {spread} with LSTM and MLP models")
+        logging.info(f"Initialized SystematicTester for spreads: {', '.join(self.spreads)}")
 
-    def validate_data(self, prediction_type: str) -> Tuple[bool, List[str]]:
+    def validate_data(self, spread: str, prediction_type: str) -> Tuple[bool, List[str]]:
         """
         Validate data for the given prediction type.
         
         Args:
+            spread: Name of the spread to test ('2s10s', '5s30s', '2s5s', '10s30s', '3m10y')
             prediction_type: Type of prediction ('next_day', 'direction', 'ternary')
             
         Returns:
@@ -184,7 +221,7 @@ class SystematicTester:
                 issues.append(f"Insufficient data points: {len(features)} (minimum required: 100)")
             
             # Check target column exists
-            target_col = f'y_{self.spread}_{prediction_type}'
+            target_col = f'y_{spread}_{prediction_type}'
             if target_col not in targets.columns:
                 issues.append(f"Target column {target_col} not found in targets data")
             
@@ -199,121 +236,122 @@ class SystematicTester:
             logging.error(f"Validation error: {str(e)}\n{traceback.format_exc()}")
             return False, issues
 
-    def log_error(self, test_key: str, error_msg: str, category: ErrorCategory, stack_trace: Optional[str] = None) -> None:
-        """Log error with timestamp and save to file."""
-        error_entry = {
-            'timestamp': datetime.now().isoformat(),
-            'category': category.value,
+    def log_error(self, spread: str, test_key: str, error_msg: str, category: ErrorCategory, stack_trace: Optional[str] = None) -> None:
+        """Log an error that occurred during testing."""
+        error_data = {
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'message': error_msg,
+            'category': category.value,
             'stack_trace': stack_trace
         }
         
-        # Add to errors dictionary
-        if test_key not in self.errors:
-            self.errors[test_key] = []
-        self.errors[test_key].append(error_entry)
+        if test_key not in self.errors[spread]:
+            self.errors[spread][test_key] = []
+        self.errors[spread][test_key].append(error_data)
         
-        # Log to console
-        logging.error(f"{category.value.upper()}: {error_msg}")
-        
-        # Save to file
+        # Save errors immediately
+        errors_file = f"results/systematic_testing/{spread}_systematic_test_errors.json"
         try:
-            with open(self.errors_file, 'w') as f:
-                json.dump(self.errors, f, indent=4, cls=NumpyEncoder)
+            with open(errors_file, 'w') as f:
+                json.dump(self.errors[spread], f, indent=4, cls=NumpyEncoder)
+            logging.info(f"Error logged and saved to {errors_file}")
         except Exception as e:
-            logging.error(f"Error saving errors to file: {e}")
+            logging.error(f"Error saving error log: {e}")
+            logging.error(traceback.format_exc())
 
-    def save_results(self, test_key: str, results: Dict, model_type: str, prediction_type: str) -> None:
+    def save_results(self, spread: str, test_key: str, results: Dict, model_type: str, prediction_type: str) -> None:
         """Save test results to file."""
+        results_data = {
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'model_type': model_type,
+            'prediction_type': prediction_type,
+            'results': results
+        }
+        
+        self.results[spread][test_key] = results_data
+        
+        # Save results immediately
+        results_file = f"results/systematic_testing/{spread}_systematic_test_results.json"
         try:
-            self.results[test_key] = {
-                'timestamp': datetime.now().isoformat(),
-                'metrics': results,
-                'status': 'success',
-                'model_config': {
-                    'spread': self.spread,
-                    'prediction_type': prediction_type,
-                    'model_type': model_type
-                },
-                'training_info': {
-                    'num_samples': len(results['predictions']),
-                    'mse': results.get('mse'),
-                    'train_loss': results.get('train_loss'),
-                    'val_loss': results.get('val_loss'),
-                    'accuracy': results.get('accuracy'),
-                    'f1_score': results.get('f1_score')
-                }
-            }
-            
-            with open(self.results_file, 'w') as f:
-                json.dump(self.results, f, indent=4, cls=NumpyEncoder)
-            logging.info(f"Results saved to {self.results_file}")
+            with open(results_file, 'w') as f:
+                json.dump(self.results[spread], f, indent=4, cls=NumpyEncoder)
+            logging.info(f"Results saved to {results_file}")
         except Exception as e:
             logging.error(f"Error saving results: {e}")
             logging.error(traceback.format_exc())
 
     def run_tests(self) -> None:
-        """Run systematic tests for all prediction types and models."""
+        """Run systematic tests for all spreads, prediction types, and models."""
         try:
-            # Skip ternary classification for 10s30s spread
-            if self.spread == '10s30s':
-                self.prediction_types.remove('ternary')
-                logging.info("Skipping ternary classification for 10s30s spread")
-            
-            # Test each prediction type and model combination
-            for prediction_type in self.prediction_types:
-                for model_type in self.model_types:
-                    test_key = f"{model_type}_{prediction_type}"
-                    logging.info(f"Starting test for {test_key}")
-                    
-                    try:
-                        # Validate data
-                        is_valid, issues = self.validate_data(prediction_type)
-                        if not is_valid:
-                            self.log_error(
-                                test_key,
-                                f"Data validation failed: {', '.join(issues)}",
-                                ErrorCategory.DATA_VALIDATION
-                            )
-                            continue
+            for spread in self.spreads:
+                logging.info(f"\nStarting tests for spread: {spread}")
+                
+                # Get prediction types for this spread
+                spread_prediction_types = self.prediction_types.copy()
+                if spread == '10s30s':
+                    spread_prediction_types.remove('ternary')
+                    logging.info("Skipping ternary classification for 10s30s spread")
+                
+                # Test each prediction type and model combination
+                for prediction_type in spread_prediction_types:
+                    for model_type in self.model_types[prediction_type]:
+                        test_key = f"{model_type}_{prediction_type}"
+                        logging.info(f"Starting test for {spread} - {test_key}")
                         
-                        # Initialize model trainer
-                        trainer = ModelTrainer(
-                            spread=self.spread,
-                            prediction_type=prediction_type,
-                            model_type=model_type,
-                            tune_hyperparameters=True
-                        )
-                        
-                        # Train model
                         try:
-                            results = trainer.train()
-                            if results:
-                                self.save_results(test_key, results, model_type, prediction_type)
-                                logging.info(f"Successfully completed test for {test_key}")
-                            else:
+                            # Validate data
+                            is_valid, issues = self.validate_data(spread, prediction_type)
+                            if not is_valid:
                                 self.log_error(
+                                    spread,
                                     test_key,
-                                    "Training returned no results",
-                                    ErrorCategory.MODEL_TRAINING
+                                    f"Data validation failed: {', '.join(issues)}",
+                                    ErrorCategory.DATA_VALIDATION
                                 )
-                        except Exception as e:
-                            self.log_error(
-                                test_key,
-                                f"Error during training: {str(e)}",
-                                ErrorCategory.MODEL_TRAINING,
-                                traceback.format_exc()
+                                continue
+                            
+                            # Initialize model trainer
+                            trainer = ModelTrainer(
+                                spread=spread,
+                                prediction_type=prediction_type,
+                                model_type=model_type,
+                                tune_hyperparameters=True
                             )
                             
-                    except Exception as e:
-                        self.log_error(
-                            test_key,
-                            f"Unexpected error: {str(e)}",
-                            ErrorCategory.UNEXPECTED,
-                            traceback.format_exc()
-                        )
+                            # Train model
+                            try:
+                                results = trainer.train()
+                                if results:
+                                    self.save_results(spread, test_key, results, model_type, prediction_type)
+                                    logging.info(f"Successfully completed test for {spread} - {test_key}")
+                                else:
+                                    self.log_error(
+                                        spread,
+                                        test_key,
+                                        "Training returned no results",
+                                        ErrorCategory.MODEL_TRAINING
+                                    )
+                            except Exception as e:
+                                self.log_error(
+                                    spread,
+                                    test_key,
+                                    f"Error during training: {str(e)}",
+                                    ErrorCategory.MODEL_TRAINING,
+                                    traceback.format_exc()
+                                )
+                                
+                        except Exception as e:
+                            self.log_error(
+                                spread,
+                                test_key,
+                                f"Unexpected error: {str(e)}",
+                                ErrorCategory.UNEXPECTED,
+                                traceback.format_exc()
+                            )
+                
+                logging.info(f"Completed all tests for spread: {spread}")
             
-            logging.info("Completed all systematic tests")
+            logging.info("\nCompleted all systematic tests")
             
         except Exception as e:
             logging.error(f"Fatal error in run_tests: {str(e)}\n{traceback.format_exc()}")

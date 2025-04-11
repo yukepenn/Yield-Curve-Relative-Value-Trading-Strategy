@@ -44,7 +44,30 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.to_dict()
         elif isinstance(obj, pd.DataFrame):
             return obj.to_dict()
+        elif isinstance(obj, (dict, list)):
+            # Recursively handle nested dictionaries and lists
+            if isinstance(obj, dict):
+                return {k: self.default(v) for k, v in obj.items()}
+            else:
+                return [self.default(v) for v in obj]
         return super(NumpyEncoder, self).default(obj)
+
+def ensure_json_serializable(obj):
+    """Helper function to ensure an object is JSON serializable."""
+    if isinstance(obj, pd.Series):
+        return obj.to_dict()
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return float(obj)
+    elif isinstance(obj, (dict, list)):
+        if isinstance(obj, dict):
+            return {k: ensure_json_serializable(v) for k, v in obj.items()}
+        else:
+            return [ensure_json_serializable(v) for v in obj]
+    return obj
 
 warnings.filterwarnings('ignore')
 
@@ -747,27 +770,32 @@ class ModelTrainer:
         results_dir = self.results_dir / f"{self.spread}_{self.prediction_type}"
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save metrics
+        # Prepare metrics dictionary and ensure all values are JSON serializable
         metrics = {
             'spread': self.spread,
             'prediction_type': self.prediction_type,
             'model_type': self.model_type,
             'num_features': int(len(self.features.columns)),
             'selected_features': list(self.features.columns),
-            'mse': results.get('mse'),
-            'accuracy': results.get('accuracy'),
-            'f1': results.get('f1'),
-            'roc_auc': results.get('roc_auc'),
-            'feature_importance': (results.get('feature_importance').to_dict() 
-                                   if isinstance(results.get('feature_importance'), pd.Series) else {}),
-            'train_loss': results.get('train_loss'),
-            'val_loss': results.get('val_loss'),
-            'best_epoch': results.get('best_epoch'),
-            'training_time': results.get('training_time'),
+            'mse': ensure_json_serializable(results.get('mse')),
+            'accuracy': ensure_json_serializable(results.get('accuracy')),
+            'f1': ensure_json_serializable(results.get('f1')),
+            'roc_auc': ensure_json_serializable(results.get('roc_auc')),
+            'train_loss': ensure_json_serializable(results.get('train_loss')),
+            'val_loss': ensure_json_serializable(results.get('val_loss')),
+            'best_epoch': ensure_json_serializable(results.get('best_epoch')),
+            'training_time': ensure_json_serializable(results.get('training_time')),
             'device': str(self.device),
             'timestamp': datetime.now().isoformat()
         }
         
+        # Handle feature importance separately to ensure proper serialization
+        fi = results.get('feature_importance')
+        if fi is not None:
+            metrics['feature_importance'] = ensure_json_serializable(fi)
+        else:
+            metrics['feature_importance'] = {}
+
         # Save to JSON using the custom encoder
         results_file = results_dir / f"{self.model_type}_results.json"
         try:
