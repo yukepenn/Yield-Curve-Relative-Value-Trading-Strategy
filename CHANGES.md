@@ -880,26 +880,40 @@ Technical Details:
 ## [Unreleased]
 
 ### Added
-- NumpyEncoder class for proper JSON serialization of numpy types
-- Enhanced error handling in systematic testing
-- Improved results saving with custom JSON encoder
-- Better type conversion for numpy values
-- Comprehensive error logging with proper type handling
-- Successful systematic testing implementation
+- Support for multiple prediction types (next_day, direction, ternary) in systematic testing
+- Enhanced test framework to handle different model types (LSTM, MLP)
+- Improved error handling and logging for different prediction types
+- Added validation for different prediction types
+- Added prediction type-specific metrics tracking
+- Added automatic skipping of ternary classification for 10s30s spread
+- Added results/model_training/ directory for model outputs
+- Added comprehensive data validation in systematic testing
+- Added detailed error logging with stack traces
+- Added immediate error log saving functionality
 
 ### Changed
-- Updated JSON serialization to handle numpy float32 values
-- Enhanced error logging format
-- Improved results saving mechanism
-- Updated test file structure for better error handling
-- Optimized test execution flow
+- Updated systematic testing to accommodate multiple prediction types
+- Modified data validation to handle different prediction types
+- Enhanced error logging for different prediction scenarios
+- Improved results storage for multiple prediction types
+- Simplified data paths structure
+- Streamlined test execution flow
+- Updated directory structure to use results/model_training/ for model outputs
+- Improved TimeSeriesDataset with better data handling
+- Enhanced LSTM model implementation with proper tensor handling
+- Updated error categorization and persistence
 
 ### Fixed
-- JSON serialization issues with numpy float32 values
-- Error handling in results saving
-- Type conversion issues in error logging
-- Results storage format consistency
-- Test execution reliability
+- Fixed data validation for different prediction types
+- Resolved error handling in systematic testing
+- Addressed logging issues for multiple prediction types
+- Fixed results storage for different prediction scenarios
+- Fixed directory structure for model outputs
+- Fixed tensor dimension handling in LSTM model
+- Fixed data type conversion issues in model training
+- Fixed sequence length handling in TimeSeriesDataset
+- Fixed batch processing in data loaders
+- Fixed error persistence with proper JSON storage
 
-## [Previous Version]
+## [Previous Versions]
 // ... existing code ...

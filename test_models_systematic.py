@@ -1,6 +1,6 @@
 """
-Systematic testing of LSTM model for next_day prediction.
-This script tests LSTM model with comprehensive error handling and data validation.
+Systematic testing of LSTM and MLP models for yield spread prediction.
+This script tests models with comprehensive error handling and data validation.
 """
 
 import logging
@@ -45,7 +45,7 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 class SystematicTester:
-    """Class to handle systematic testing of LSTM model for next_day prediction."""
+    """Class to handle systematic testing of LSTM and MLP models."""
     
     def __init__(self, spread: str = '2s10s'):
         """
@@ -58,6 +58,15 @@ class SystematicTester:
         self.results = {}
         self.errors = {}
         
+        # Set paths
+        self.data_dir = Path('data/processed')
+        self.results_dir = Path('results/model_training')
+        self.error_logs_dir = Path('results/logs')
+        
+        # Create directories if they don't exist
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.error_logs_dir.mkdir(parents=True, exist_ok=True)
+        
         # Set file paths
         self.results_file = f"results/systematic_testing/{spread}_systematic_test_results.json"
         self.errors_file = f"results/systematic_testing/{spread}_systematic_test_errors.json"
@@ -65,11 +74,14 @@ class SystematicTester:
         # Create results directories
         Path('results/systematic_testing').mkdir(parents=True, exist_ok=True)
         
+        # Define prediction types and models to test
+        self.prediction_types = ['next_day', 'direction', 'ternary']
+        self.model_types = ['lstm', 'mlp']
+        
         # Initialize data paths
         self.data_paths = {
             'features': Path('data/processed/features.csv'),
-            'targets': Path('data/processed/targets.csv'),
-            'selected_features': Path(f'results/feature_analysis/y_{spread}_next_day/selected_features.csv')
+            'targets': Path('data/processed/targets.csv')
         }
         
         # Timestamp for unique filenames
@@ -103,14 +115,14 @@ class SystematicTester:
                 logging.error(f"Error loading errors file: {e}")
                 self.errors = {}
         
-        logging.info(f"Initialized SystematicTester for {spread} with next_day LSTM model")
+        logging.info(f"Initialized SystematicTester for {spread} with LSTM and MLP models")
 
     def validate_data(self, prediction_type: str) -> Tuple[bool, List[str]]:
         """
-        Validate data for next_day prediction.
+        Validate data for the given prediction type.
         
         Args:
-            prediction_type: Type of prediction ('next_day')
+            prediction_type: Type of prediction ('next_day', 'direction', 'ternary')
             
         Returns:
             Tuple of (is_valid, list_of_issues)
@@ -171,6 +183,11 @@ class SystematicTester:
             if len(features) < 100:
                 issues.append(f"Insufficient data points: {len(features)} (minimum required: 100)")
             
+            # Check target column exists
+            target_col = f'y_{self.spread}_{prediction_type}'
+            if target_col not in targets.columns:
+                issues.append(f"Target column {target_col} not found in targets data")
+            
             # Log data info
             if not issues:
                 logging.info(f"Data validation successful - Features: {features.shape}, Targets: {targets.shape}")
@@ -198,8 +215,6 @@ class SystematicTester:
         
         # Log to console
         logging.error(f"{category.value.upper()}: {error_msg}")
-        if stack_trace:
-            logging.error(f"Stack trace: {stack_trace}")
         
         # Save to file
         try:
@@ -208,7 +223,7 @@ class SystematicTester:
         except Exception as e:
             logging.error(f"Error saving errors to file: {e}")
 
-    def save_results(self, test_key: str, results: Dict) -> None:
+    def save_results(self, test_key: str, results: Dict, model_type: str, prediction_type: str) -> None:
         """Save test results to file."""
         try:
             self.results[test_key] = {
@@ -217,14 +232,16 @@ class SystematicTester:
                 'status': 'success',
                 'model_config': {
                     'spread': self.spread,
-                    'prediction_type': 'next_day',
-                    'model_type': 'lstm'
+                    'prediction_type': prediction_type,
+                    'model_type': model_type
                 },
                 'training_info': {
                     'num_samples': len(results['predictions']),
-                    'mse': results['mse'],
-                    'train_loss': results['train_loss'],
-                    'val_loss': results['val_loss']
+                    'mse': results.get('mse'),
+                    'train_loss': results.get('train_loss'),
+                    'val_loss': results.get('val_loss'),
+                    'accuracy': results.get('accuracy'),
+                    'f1_score': results.get('f1_score')
                 }
             }
             
@@ -235,125 +252,72 @@ class SystematicTester:
             logging.error(f"Error saving results: {e}")
             logging.error(traceback.format_exc())
 
-    def run_tests(self):
-        """
-        Run focused test for LSTM model on next_day prediction.
-        Logs progress, errors, and results throughout the testing process.
-        """
-        if self.spread != '2s10s':
-            logging.warning("This test is configured for 2s10s spread only")
-            return None
-            
-        logging.info(f"Starting focused testing for {self.spread} (LSTM only)")
-        
-        test_key = f"{self.spread}_next_day_lstm"
-        logging.info(f"Starting test {test_key}")
-        
+    def run_tests(self) -> None:
+        """Run systematic tests for all prediction types and models."""
         try:
-            # Validate data first
-            is_valid, issues = self.validate_data('next_day')
-            if not is_valid:
-                error_msg = f"Data validation failed: {', '.join(issues)}"
-                self.log_error(
-                    test_key,
-                    error_msg,
-                    ErrorCategory.DATA_VALIDATION,
-                    None
-                )
-                return None
+            # Skip ternary classification for 10s30s spread
+            if self.spread == '10s30s':
+                self.prediction_types.remove('ternary')
+                logging.info("Skipping ternary classification for 10s30s spread")
             
-            # Train and evaluate model
-            try:
-                # Initialize model trainer with detailed logging
-                logging.info("Initializing ModelTrainer with LSTM configuration")
-                model = ModelTrainer(
-                    spread=self.spread,
-                    prediction_type='next_day',
-                    model_type='lstm'
-                )
-                
-                # Log model configuration
-                logging.info(f"Model configuration: {model.__dict__}")
-                
-                # Train model with error handling
-                logging.info("Starting model training")
-                results = model.train()
-                
-                if results is None:
-                    error_msg = "Model training returned no results"
-                    self.log_error(
-                        test_key,
-                        error_msg,
-                        ErrorCategory.MODEL_TRAINING,
-                        None
-                    )
-                    return None
-                
-                # Validate training results
-                required_metrics = ['mse', 'train_loss', 'val_loss', 'predictions', 'actuals']
-                missing_metrics = [metric for metric in required_metrics if metric not in results]
-                if missing_metrics:
-                    error_msg = f"Missing required metrics in results: {missing_metrics}"
-                    self.log_error(
-                        test_key,
-                        error_msg,
-                        ErrorCategory.MODEL_TRAINING,
-                        None
-                    )
-                    return None
-                
-                # Store results with detailed information
-                self.save_results(test_key, results)
-                
-                # Log success metrics
-                logging.info(f"Training completed successfully with MSE: {results['mse']:.4f}")
-                logging.info(f"Train loss: {results['train_loss']:.4f}, Val loss: {results['val_loss']:.4f}")
-                
-            except Exception as e:
-                error_msg = f"Error during model training: {str(e)}"
-                self.log_error(
-                    test_key,
-                    error_msg,
-                    ErrorCategory.MODEL_TRAINING,
-                    traceback.format_exc()
-                )
-                return None
+            # Test each prediction type and model combination
+            for prediction_type in self.prediction_types:
+                for model_type in self.model_types:
+                    test_key = f"{model_type}_{prediction_type}"
+                    logging.info(f"Starting test for {test_key}")
+                    
+                    try:
+                        # Validate data
+                        is_valid, issues = self.validate_data(prediction_type)
+                        if not is_valid:
+                            self.log_error(
+                                test_key,
+                                f"Data validation failed: {', '.join(issues)}",
+                                ErrorCategory.DATA_VALIDATION
+                            )
+                            continue
+                        
+                        # Initialize model trainer
+                        trainer = ModelTrainer(
+                            spread=self.spread,
+                            prediction_type=prediction_type,
+                            model_type=model_type,
+                            tune_hyperparameters=True
+                        )
+                        
+                        # Train model
+                        try:
+                            results = trainer.train()
+                            if results:
+                                self.save_results(test_key, results, model_type, prediction_type)
+                                logging.info(f"Successfully completed test for {test_key}")
+                            else:
+                                self.log_error(
+                                    test_key,
+                                    "Training returned no results",
+                                    ErrorCategory.MODEL_TRAINING
+                                )
+                        except Exception as e:
+                            self.log_error(
+                                test_key,
+                                f"Error during training: {str(e)}",
+                                ErrorCategory.MODEL_TRAINING,
+                                traceback.format_exc()
+                            )
+                            
+                    except Exception as e:
+                        self.log_error(
+                            test_key,
+                            f"Unexpected error: {str(e)}",
+                            ErrorCategory.UNEXPECTED,
+                            traceback.format_exc()
+                        )
+            
+            logging.info("Completed all systematic tests")
             
         except Exception as e:
-            error_msg = f"Unexpected error during testing: {str(e)}"
-            self.log_error(
-                test_key,
-                error_msg,
-                ErrorCategory.UNEXPECTED,
-                traceback.format_exc()
-            )
-            return None
-        
-        return self.results
-
-def main():
-    """
-    Main function to run focused testing for 2s10s spread with LSTM model.
-    """
-    logging.info("Starting focused testing for 2s10s spread")
-    
-    try:
-        # Initialize tester for 2s10s spread
-        tester = SystematicTester(spread='2s10s')
-        
-        # Run tests
-        results = tester.run_tests()
-        
-        if results is None:
-            logging.error("Testing failed - invalid spread configuration")
-            return
-        
-        logging.info("Testing completed successfully")
-        
-    except Exception as e:
-        logging.error(f"Testing failed with error: {str(e)}")
-        logging.error(traceback.format_exc())
-        raise
+            logging.error(f"Fatal error in run_tests: {str(e)}\n{traceback.format_exc()}")
 
 if __name__ == "__main__":
-    main() 
+    tester = SystematicTester()
+    tester.run_tests() 
