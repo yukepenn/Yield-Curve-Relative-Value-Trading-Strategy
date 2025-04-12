@@ -880,30 +880,49 @@ Technical Details:
 ## [Unreleased]
 
 ### Added
-- Comprehensive error analysis for classification models
-- Detailed documentation of model training issues
-- Root cause analysis for classification failures
-- Fix recommendations for model training
-- Enhanced error logging system
+- Expanded model architecture support:
+  - Regression models: LSTM, MLP, Random Forest, XGBoost, Linear models
+  - Binary classification: LSTM, MLP, Random Forest, SVM, Logistic Regression
+  - Ternary classification: LSTM, MLP, Random Forest, Multi-class SVM
+- Model-specific features:
+  - Hyperparameter tuning for each model type
+  - Custom loss functions per architecture
+  - Model-specific preprocessing pipelines
+- Enhanced model evaluation framework:
+  - Architecture-specific metrics
+  - Cross-validation strategies
+  - Performance comparison tools
 
 ### Changed
-- Updated error tracking for classification models
-- Modified error categorization
-- Enhanced error logging format
-- Improved error message clarity
-- Updated documentation structure
+- Updated model training pipeline to support multiple architectures
+- Enhanced signal generation to handle different model outputs
+- Improved model selection criteria
+- Modified ensemble strategy to accommodate various model types
 
 ### Fixed
-- None yet (fixes planned)
+- No fixes in this release
 
 ### Removed
-- None
+- No removals in this release
 
 ### Security
-- None
+- No security issues addressed in this release
 
-## [Previous Version]
-// ... existing code ...
+Don't forget to commit!
+
+```bash
+git add src/risk.py PROGRESS.md CHANGES.md
+git commit -m "Refactor(risk): improve risk management with utility classes"
+```
+
+## [0.1.0] - 2024-03-20
+
+### Added
+- Initial project setup
+- Basic model training framework
+- Systematic testing framework
+- Error logging system
+- Documentation structure
 
 ## [2024-04-11] - Systematic Testing Run
 ### Added
@@ -945,4 +964,54 @@ Technical Details:
 - None
 
 ## [2024-04-10]
-// ... existing code ...
+
+### Added
+- Risk management module (`risk.py`)
+  - DV01-based position sizing
+  - Risk metrics calculation (VaR, Expected Shortfall)
+  - Portfolio limits checking
+  - Configuration management
+- Portfolio management module (`portfolio.py`)
+  - Risk-adjusted portfolio weighting
+  - Performance analytics
+  - Correlation analysis
+  - Results visualization
+- Signal generation module (`signal_generator.py`)
+  - Ensemble weighting
+  - Confidence scaling
+  - Multiple model support
+- Backtesting engine (`backtest.py`)
+  - Transaction costs
+  - Rebalancing logic
+  - Performance tracking
+- Utility classes (`utils.py`)
+  - DurationCalculator
+  - DV01Calculator
+  - RiskMetricsCalculator
+  - DataProcessor
+
+### Changed
+- Enhanced configuration handling
+- Improved risk metrics calculation
+- Updated documentation
+- Optimized code structure
+
+### Fixed
+- JSON serialization issues
+- Risk metrics calculation precision
+- Configuration validation
+- Error handling in backtesting
+
+## [2024-04-09]
+
+### Added
+- Initial project structure
+- Basic risk metrics
+- Configuration framework
+- Data processing utilities
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
