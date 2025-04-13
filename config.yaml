@@ -1,0 +1,63 @@
+# DV01 and Position Sizing
+dv01:
+  target: 100  # Target DV01 per trade in dollars
+  ratios:
+    2s10s: 1.9  # Fixed ratio for 2s10s (can be overridden by dynamic calculation)
+    5s30s: 3.5  # Fixed ratio for 5s30s
+    3m10y: 4.0  # Fixed ratio for 3m10y
+
+# Transaction Costs
+transaction_costs:
+  spread_bp: 0.5  # Cost in basis points per leg
+  dv01_cost: 0.1  # Cost in dollars per DV01 traded
+
+# Signal Thresholds
+signal_thresholds:
+  next_day:
+    min_change_bp: 0.5  # Minimum predicted change in basis points
+    neutral_zone: [-0.2, 0.2]  # Range considered neutral
+  direction:
+    probability: 0.6  # Minimum probability for binary classification
+  ternary:
+    probability: 0.6  # Minimum probability for ternary classification
+  ensemble:
+    min_agreement: 2  # Minimum number of models that must agree
+
+# Position Management
+position:
+  rebalancing:
+    frequency: "daily"  # Options: daily, weekly
+    threshold_pct: 0.05  # Rebalance if DV01 neutrality deviates by this percentage
+  max_position:
+    dv01_per_spread: 500  # Maximum DV01 exposure per spread
+    total_portfolio: 1000  # Maximum total portfolio DV01
+
+# Risk Management
+risk:
+  max_drawdown: 0.10  # Maximum allowed drawdown
+  var_confidence: 0.95  # VaR confidence level
+  position_limits:
+    max_concentration: 0.3  # Maximum allocation to single spread
+    correlation_threshold: 0.7  # Maximum allowed correlation between spreads
+
+# Model Ensemble
+ensemble:
+  weights:
+    next_day: 0.4
+    direction: 0.3
+    ternary: 0.3
+  confidence_scaling: true  # Whether to scale signals by model confidence
+
+# Portfolio Construction
+portfolio:
+  weighting_scheme: "risk_adjusted"  # Options: equal_dv01, risk_adjusted
+  rebalancing_frequency: "weekly"
+  vol_target: 0.10  # Annual volatility target
+  lookback_window: 252  # Days for calculating risk metrics
+
+# Paths
+paths:
+  data: "data/"
+  models: "models/"
+  results: "results/"
+  logs: "logs/" 
