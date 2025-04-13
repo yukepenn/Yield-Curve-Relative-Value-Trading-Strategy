@@ -1,0 +1,66 @@
+# Model files
+models/
+results/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+data/raw/*
+data/processed/*
+results/model_pickles/*
+results/plots/*
+results/performance_reports/*
+results/logs/*
+results/model_training/*
+
+# Keep .gitkeep files
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!results/model_pickles/.gitkeep
+!results/plots/.gitkeep
+!results/performance_reports/.gitkeep
+!results/logs/.gitkeep
+!results/model_training/.gitkeep
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Keep empty directories
+!.gitkeep 
