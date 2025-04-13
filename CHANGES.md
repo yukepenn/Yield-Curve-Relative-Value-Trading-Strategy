@@ -2,6 +2,19 @@
 
 This document maintains a chronological record of all changes made to the Yield Curve Relative Value Trading Strategy project.
 
+## 2024-04-06 23:00 EDT
+
+### Signal Generation Bug Fix
+- Fixed ternary prediction type handling in signal_generator.py
+- Resolved 'float' object has no attribute 'items' error
+- Implemented proper type conversion for ternary predictions:
+  ```python
+  ternary_df['prediction'] = pd.to_numeric(ternary_df['prediction'], errors='coerce').fillna(1).astype(int)
+  ```
+- Ensured predictions are properly coerced to int values (0, 1, or 2)
+- Fixed signal generation for 5s30s spread
+- Improved error handling for prediction type conversion
+
 ## 2024-04-06 20:45 EDT
 
 ### Project Structure and Documentation
@@ -900,7 +913,24 @@ Technical Details:
 - Modified ensemble strategy to accommodate various model types
 
 ### Fixed
-- No fixes in this release
+- Fixed issue with loading predictions from different model types
+- Resolved error handling in prediction file loading
+- Addressed logging inconsistencies in signal generation
+- Fixed ternary signal processing to handle both dictionary and float predictions
+- Resolved 'float' object is not iterable error in signal generation
+- Improved ternary signal processing to handle numeric predictions correctly
+- Added validation for class indices in ternary predictions
+- Enhanced error handling and logging in signal processing
+- Improved signal aggregation with better error handling and type checking
+- Added robust handling of invalid prediction formats
+- Enhanced logging for signal generation issues
+- Made ensemble weights more flexible with default values
+- Fixed issues with float predictions in signal aggregation
+- Signal Generator: Fixed prediction handling in aggregate_signals method to properly process CSV-formatted predictions
+  - Updated method to handle pandas DataFrames instead of dictionaries
+  - Added proper date and prediction column handling
+  - Improved error handling for invalid prediction formats
+  - Resolved 'float' object is not iterable error in signal generation
 
 ### Removed
 - No removals in this release
@@ -1015,3 +1045,63 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 
 ### Fixed
 - N/A
+
+## 2025-04-11 14:30:00
+### Fix(model): Standardize model prediction saving format
+- Updated `model_training.py` to save predictions in CSV format with dates
+- Updated `test_models_systematic.py` to save predictions in CSV format with dates
+- Predictions are now saved separately from model metrics for easier access
+- Added date alignment with original data when saving predictions
+- Maintained backward compatibility with existing JSON results format
+
+## 2025-04-11
+- Standardized results saving between model_training.py and test_models_systematic.py
+- Aligned directory structure to use results/model_training/ consistently
+- Implemented consistent JSON serialization using ensure_json_serializable
+- Added CSV prediction saving with dates for systematic testing
+- Improved error logging with standardized format and location
+- Enhanced metadata tracking with spread and test key information
+
+## [Unreleased]
+### Fixed
+- Fixed signal generator to handle tuple inputs in ternary signal processing
+
+### Added
+- Comprehensive analysis of prediction file formats for different model types
+- Enhanced prediction loading with type-specific processing
+- Detailed documentation of prediction formats and their purposes
+
+### Changed
+- Updated `load_model_predictions` to handle different prediction types correctly:
+  - Next day predictions: Maintained as float values for regression
+  - Direction predictions: Converted binary (0/1) to probabilities (0.0/1.0)
+  - Ternary predictions: Maintained as integers (0/1/2) for classification
+- Improved error handling and logging in prediction loading
+
+### Fixed
+- Resolved format mismatch between prediction files and signal processing
+- Standardized prediction type handling across different model outputs
+
+## April 13, 2024 - Signal Generation Fix and Rerun
+- Fixed issue with float predictions in ternary signal processing
+- Improved handling of probability-based predictions
+- Added better error handling and logging
+- Rerunning signal generation with updated code
+- Testing signal generation with both probability and class index inputs
+
+## Signal Generation Module Updates
+- Fixed handling of tuple inputs in process_ternary_signal
+- Updated process_direction_signal to handle binary predictions correctly
+- Modified prediction loading to maintain correct data types
+- Successfully generating balanced signals for both spreads
+
+## April 6, 2024
+- Fixed binary direction prediction handling in signal_generator.py
+  - Changed process_direction_signal to accept binary values (0,1) instead of probabilities
+  - Updated load_predictions to maintain integer type for direction predictions
+  - Removed probability threshold for direction signals
+  - Improved mapping: 1 -> steepener (1), 0 -> flattener (-1)
+- Fixed ternary prediction type handling in signal_generator.py
+  - Added support for tuple inputs in process_ternary_signal
+  - Updated docstrings and type hints
+  - Improved error handling for different input types

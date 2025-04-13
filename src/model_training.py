@@ -766,9 +766,39 @@ class ModelTrainer:
         logging.info(f"Saved model to {model_file}")
     
     def save_results(self, results: Dict) -> None:
-        """Save training results with feature information."""
+        """Save training results with feature information and predictions."""
         results_dir = self.results_dir / f"{self.spread}_{self.prediction_type}"
         results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save predictions to CSV if available
+        if 'predictions' in results and 'actuals' in results:
+            predictions_df = pd.DataFrame({
+                'prediction': results['predictions'],
+                'actual': results['actuals']
+            })
+            
+            # Get dates from the data directory
+            data_dir = Path('data/processed')
+            dates_file = data_dir / f"{self.spread}_data.csv"
+            if dates_file.exists():
+                dates_df = pd.read_csv(dates_file)
+                if len(dates_df) >= len(predictions_df):
+                    # Use dates from the data file
+                    predictions_df['date'] = dates_df['date'].iloc[-len(predictions_df):].values
+                else:
+                    # Create dates starting from the last available date
+                    last_date = dates_df['date'].iloc[-1]
+                    dates = pd.date_range(start=pd.to_datetime(last_date), periods=len(predictions_df))
+                    predictions_df['date'] = dates.strftime('%Y-%m-%d')
+            else:
+                # Create default dates if no data file exists
+                dates = pd.date_range(start='2010-01-01', periods=len(predictions_df))
+                predictions_df['date'] = dates.strftime('%Y-%m-%d')
+            
+            # Save predictions to CSV
+            predictions_file = results_dir / f"{self.model_type}_predictions.csv"
+            predictions_df.to_csv(predictions_file, index=False)
+            logging.info(f"Saved predictions to {predictions_file}")
         
         # Prepare metrics dictionary and ensure all values are JSON serializable
         metrics = {

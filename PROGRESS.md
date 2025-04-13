@@ -7,6 +7,16 @@
 - Improved backtesting engine with transaction costs and rebalancing logic
 - Added systematic testing framework for model validation
 - Implemented utility classes for financial calculations (Duration, DV01, RiskMetrics)
+- Enhanced signal generator to handle multiple model types and formats
+- Implemented ensemble prediction averaging for better signal quality
+- Added support for both JSON and CSV prediction files
+- Improved error handling and logging for prediction loading
+- Standardized results saving between model training and systematic testing
+- Improved JSON serialization and error handling across model evaluation
+- Enhanced traceability with spread and test key tracking
+- Maintained consistent CSV prediction format with dates
+- Fixed signal generator to handle tuple inputs in ternary signal processing
+- Fixed binary direction prediction handling in signal generator
 
 ## Current Focus
 - Testing and validating risk management functionality with real data
@@ -14,6 +24,13 @@
 - Implementing comprehensive risk monitoring and reporting
 - Enhancing systematic testing framework
 - Optimizing model training and validation processes
+- Testing signal generation with multiple model types
+- Validating ensemble prediction accuracy
+- Monitoring signal quality across different spreads
+- Validating the standardized results saving implementation
+- Ensuring backward compatibility with existing result files
+- Testing error handling and logging improvements
+- Fixing ternary prediction type handling in signal generation
 
 ## Next Steps
 - Implement YAML configuration loading
@@ -21,6 +38,12 @@
 - Create automated reporting dashboard
 - Add position sizing optimization based on risk limits
 - Implement portfolio rebalancing logic
+- Implement model-specific confidence weighting
+- Add signal quality metrics
+- Create signal visualization dashboard
+- Implement automated testing for results saving
+- Add data validation for saved predictions
+- Create unified results analysis pipeline
 
 ## Completed Tasks
 - [x] Set up project structure
@@ -31,6 +54,17 @@
 - [x] Set up results saving and visualization
 - [x] Integrate utility classes
 - [x] Implement systematic testing framework
+- Set up basic signal generation framework
+- Implemented model prediction loading
+- Added ensemble signal aggregation
+- Created signal saving functionality
+- [x] Standardize results saving between training and testing
+- [x] Implement consistent JSON serialization
+- [x] Add spread and test key tracking
+- [x] Improve path handling and error messages
+- [x] Maintain CSV prediction format
+- [x] Fix ternary prediction type handling in signal generation
+- [x] Fix binary direction prediction handling in signal generation
 
 ## Pending Tasks
 - [ ] Create risk dashboard
@@ -41,6 +75,14 @@
 - [ ] Document procedures
 - [ ] Add unit tests
 - [ ] Implement configuration validation
+- Add signal backtesting functionality
+- Implement signal quality monitoring
+- Create signal visualization tools
+- Document signal generation process
+- [ ] Add automated tests for results saving
+- [ ] Implement data validation for predictions
+- [ ] Create unified analysis pipeline
+- [ ] Add performance benchmarking
 
 # Project Progress Log
 
@@ -2068,7 +2110,7 @@ Next Steps:
 
 ## Next Steps
 - Implement YAML configuration loading
-- Add unit tests for risk management
+- Add unit tests for risk calculations
 - Create risk monitoring dashboard
 - Document risk management procedures
 - Add risk alerts system
@@ -2281,3 +2323,72 @@ Next Steps:
 - Implement portfolio optimization algorithms
 - Add stress testing scenarios
 - Create real-time monitoring dashboard
+
+## Signal Generator
+- [x] Basic signal generation framework
+- [x] Model prediction loading with support for multiple formats
+- [x] Error handling and logging improvements
+- [x] Date standardization and validation
+- [x] Fixed float iteration error in signal aggregation
+- [ ] Signal threshold configuration
+- [ ] Multi-model signal aggregation
+
+## Prediction Format Analysis (Current)
+
+### Completed Tasks
+- [x] Analyzed prediction file formats for all model types
+- [x] Documented differences between prediction types:
+  - Next day (regression): Continuous float values
+  - Direction (binary): 0/1 classification
+  - Ternary: 0/1/2 classification
+- [x] Updated prediction loading to handle different formats
+- [x] Improved error handling and logging
+
+### In Progress
+- [ ] Validate signal generation with updated prediction formats
+- [ ] Test prediction loading with different model combinations
+- [ ] Document prediction format requirements for future models
+
+### Next Steps
+1. Implement comprehensive testing for prediction loading
+2. Add validation checks for prediction formats
+3. Create visualization tools for prediction analysis
+4. Document prediction format specifications
+5. Add unit tests for prediction processing
+
+### Technical Debt
+- Need to standardize prediction format documentation
+- Consider adding prediction format validation
+- Review error handling for edge cases
+- Document prediction type-specific processing
+
+## Signal Generator Improvements
+
+### Completed
+- Fixed ternary signal processing to handle float predictions correctly
+- Improved error handling and logging for signal processing
+- Enhanced robustness of signal generation for different prediction types
+
+### In Progress
+- Testing signal generator with different prediction formats
+- Implementing visualization for signal generation process
+- Adding comprehensive error handling for all signal types
+
+### Planned
+- Add unit tests for signal processing methods
+- Implement signal validation and verification
+- Create signal generation performance metrics
+- Add signal visualization tools
+- Implement signal backtesting framework
+
+## April 13, 2024 - Signal Generation Fix and Rerun
+- Fixed issue with float predictions in ternary signal processing
+- Improved handling of probability-based predictions
+- Added better error handling and logging
+- Rerunning signal generation with updated code
+- Testing signal generation with both probability and class index inputs
+
+## 2025-04-13
+- Fixed signal generation module to properly handle all prediction types
+- Successfully generating signals for both 2s10s and 5s30s spreads
+- Signal distribution shows expected behavior with good mix of steepener/flattener/neutral signals

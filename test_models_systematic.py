@@ -56,7 +56,9 @@ class NumpyEncoder(json.JSONEncoder):
 
 def ensure_json_serializable(obj):
     """Helper function to ensure an object is JSON serializable."""
-    if isinstance(obj, pd.Series):
+    if obj is None:
+        return None
+    elif isinstance(obj, pd.Series):
         return obj.to_dict()
     elif isinstance(obj, pd.DataFrame):
         return obj.to_dict()
@@ -79,9 +81,9 @@ class SystematicTester:
         Initialize SystematicTester.
         
         Args:
-            spreads: List of spreads to test. If None, tests only 2s10s spread
+            spreads: List of spreads to test. If None, tests only 2s10s and 5s30s spreads
         """
-        self.spreads = spreads if spreads else ['2s10s']
+        self.spreads = spreads if spreads else ['2s10s', '5s30s']
         self.results = {}
         self.errors = {}
         
@@ -95,10 +97,11 @@ class SystematicTester:
         self.error_logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Define prediction types and models to test
-        self.prediction_types = ['direction', 'ternary']
+        self.prediction_types = ['next_day', 'direction', 'ternary']
         self.model_types = {
-            'direction': ['mlp', 'lstm'],
-            'ternary': ['mlp', 'lstm']
+            'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],
+            'direction': ['mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],
+            'ternary': ['mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge']
         }
         
         # Initialize data paths
@@ -238,47 +241,69 @@ class SystematicTester:
 
     def log_error(self, spread: str, test_key: str, error_msg: str, category: ErrorCategory, stack_trace: Optional[str] = None) -> None:
         """Log an error that occurred during testing."""
+        # Create error logs directory
+        error_logs_dir = Path('results/logs')
+        error_logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Prepare error data
         error_data = {
+            'spread': spread,
+            'test_key': test_key,
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'message': error_msg,
             'category': category.value,
             'stack_trace': stack_trace
         }
         
-        if test_key not in self.errors[spread]:
-            self.errors[spread][test_key] = []
-        self.errors[spread][test_key].append(error_data)
-        
-        # Save errors immediately
-        errors_file = f"results/systematic_testing/{spread}_systematic_test_errors.json"
+        # Save error to JSON
+        error_file = error_logs_dir / f"{spread}_{test_key}_error.json"
         try:
-            with open(errors_file, 'w') as f:
-                json.dump(self.errors[spread], f, indent=4, cls=NumpyEncoder)
-            logging.info(f"Error logged and saved to {errors_file}")
+            with open(error_file, 'w') as f:
+                json.dump(ensure_json_serializable(error_data), f, indent=4)
+            logging.error(f"Error logged to {error_file}")
         except Exception as e:
             logging.error(f"Error saving error log: {e}")
             logging.error(traceback.format_exc())
 
     def save_results(self, spread: str, test_key: str, results: Dict, model_type: str, prediction_type: str) -> None:
         """Save test results to file."""
+        # Create results directory structure
+        results_dir = Path(f"results/model_training/{spread}_{prediction_type}")
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Prepare results data with metadata
         results_data = {
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'model_type': model_type,
+            'spread': spread,
             'prediction_type': prediction_type,
-            'results': results
+            'model_type': model_type,
+            'test_key': test_key,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'results': ensure_json_serializable(results)
         }
         
-        self.results[spread][test_key] = results_data
-        
-        # Save results immediately
-        results_file = f"results/systematic_testing/{spread}_systematic_test_results.json"
+        # Save results to JSON
+        results_file = results_dir / f"{model_type}_results.json"
         try:
             with open(results_file, 'w') as f:
-                json.dump(self.results[spread], f, indent=4, cls=NumpyEncoder)
+                json.dump(results_data, f, indent=4)
             logging.info(f"Results saved to {results_file}")
         except Exception as e:
             logging.error(f"Error saving results: {e}")
             logging.error(traceback.format_exc())
+            
+        # Save predictions to CSV if available
+        if 'predictions' in results:
+            predictions_file = results_dir / f"{model_type}_predictions.csv"
+            try:
+                predictions_df = pd.DataFrame({
+                    'date': results['predictions'].keys(),
+                    'prediction': results['predictions'].values()
+                })
+                predictions_df.to_csv(predictions_file, index=False)
+                logging.info(f"Predictions saved to {predictions_file}")
+            except Exception as e:
+                logging.error(f"Error saving predictions: {e}")
+                logging.error(traceback.format_exc())
 
     def run_tests(self) -> None:
         """Run systematic tests for all spreads, prediction types, and models."""
