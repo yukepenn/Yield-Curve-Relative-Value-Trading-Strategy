@@ -14,14 +14,14 @@ transaction_costs:
 # Signal Thresholds
 signal_thresholds:
   next_day:
-    min_change_bp: 0.5  # Minimum predicted change in basis points
-    neutral_zone: [-0.2, 0.2]  # Range considered neutral
+    min_change_bp: 0.75  # Minimum predicted change in basis points
+    neutral_zone: [-0.3, 0.3]  # Range considered neutral
   direction:
-    probability: 0.6  # Minimum probability for binary classification
+    probability: 0.65  # Minimum probability for binary classification
   ternary:
-    probability: 0.6  # Minimum probability for ternary classification
+    probability: 0.65  # Minimum probability for ternary classification
   ensemble:
-    min_agreement: 2  # Minimum number of models that must agree
+    min_agreement: 3  # Minimum number of models that must agree
 
 # Position Management
 position:
@@ -43,10 +43,11 @@ risk:
 # Model Ensemble
 ensemble:
   weights:
-    next_day: 0.4
-    direction: 0.3
-    ternary: 0.3
+    next_day: 0.35
+    direction: 0.35
+    ternary: 0.30
   confidence_scaling: true  # Whether to scale signals by model confidence
+  neutral_threshold: 0.4  # New parameter: minimum vote required for directional signal
 
 # Portfolio Construction
 portfolio:
