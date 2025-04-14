@@ -7,13 +7,96 @@ import numpy as np
 import logging
 import ast
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional   
 import json
 import yaml
 import glob
+from dataclasses import dataclass
+from enum import Enum
 
 # Configure logging for debug and error tracking
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class SignalType(Enum):
+    """Enum for signal types to ensure type safety."""
+    STEEPER = 1
+    NEUTRAL = 0
+    FLATTENER = -1
+
+@dataclass
+class Signal:
+    """Data class to hold signal information."""
+    value: SignalType
+    confidence: float
+    model_type: str
+    model_name: str
+    timestamp: pd.Timestamp
+
+class EnsembleSignal:
+    """Class to handle signal aggregation with weights and agreement thresholds."""
+    
+    def __init__(self, weights: Dict[str, float], min_agreement: int, confidence_scaling: bool, neutral_threshold: float):
+        """
+        Initialize EnsembleSignal.
+        
+        Args:
+            weights: Dictionary of model weights
+            min_agreement: Minimum number of models that must agree
+            confidence_scaling: Whether to scale votes by confidence
+            neutral_threshold: Minimum vote required for directional signal
+        """
+        self.weights = weights
+        self.min_agreement = min_agreement
+        self.confidence_scaling = confidence_scaling
+        self.neutral_threshold = neutral_threshold
+        self.signals: List[Signal] = []
+    
+    def add_signal(self, signal: Signal) -> None:
+        """Add a signal to the ensemble."""
+        self.signals.append(signal)
+    
+    def get_agreement_count(self, signal_type: SignalType) -> int:
+        """Count how many models agree on a particular signal type."""
+        return sum(1 for s in self.signals if s.value == signal_type)
+    
+    def get_weighted_vote(self) -> Tuple[SignalType, float]:
+        """
+        Calculate weighted vote considering both model weights and confidence.
+        
+        Returns:
+            Tuple[SignalType, float]: (final signal, confidence)
+        """
+        if not self.signals:
+            return SignalType.NEUTRAL, 0.0
+            
+        # Calculate weighted votes for each signal type
+        votes = {SignalType.STEEPER: 0.0, SignalType.NEUTRAL: 0.0, SignalType.FLATTENER: 0.0}
+        total_weight = 0.0
+        
+        for signal in self.signals:
+            weight = self.weights.get(signal.model_name, 1.0)
+            confidence = signal.confidence if self.confidence_scaling else 1.0
+            votes[signal.value] += weight * confidence
+            total_weight += weight
+            
+        if total_weight == 0:
+            return SignalType.NEUTRAL, 0.0
+            
+        # Normalize votes
+        for signal_type in votes:
+            votes[signal_type] /= total_weight
+            
+        # Find the signal with highest vote
+        max_signal = max(votes.items(), key=lambda x: x[1])[0]
+        max_vote = votes[max_signal]
+        
+        # Check agreement threshold and neutral threshold
+        if max_signal != SignalType.NEUTRAL:
+            agreement_count = self.get_agreement_count(max_signal)
+            if agreement_count < self.min_agreement or max_vote < self.neutral_threshold:
+                return SignalType.NEUTRAL, max_vote
+                
+        return max_signal, max_vote
 
 def load_config(config_path: Union[str, Path] = 'config.yaml') -> Dict:
     """Load configuration from YAML file."""
@@ -35,6 +118,7 @@ class SignalGenerator:
         self.ensemble_weights = self.config['ensemble']['weights']
         self.confidence_scaling = self.config['ensemble']['confidence_scaling']
         self.min_agreement = self.thresholds['ensemble']['min_agreement']
+        self.neutral_threshold = self.config['ensemble']['neutral_threshold']
     
     def process_next_day_signal(self, prediction: float) -> Tuple[int, float]:
         """
@@ -189,59 +273,35 @@ class SignalGenerator:
         
         Args:
             predictions: Dictionary containing predictions from each model type and model
-                {
-                    'next_day': {
-                        'arima': {date: prediction},
-                        'lstm': {date: prediction},
-                        ...
-                    },
-                    'direction': {
-                        'xgb': {date: prediction},
-                        'rf': {date: prediction},
-                        ...
-                    },
-                    'ternary': {
-                        'xgb': {date: prediction},
-                        'rf': {date: prediction},
-                        ...
-                    }
-                }
             
         Returns:
             dict: Date-indexed results with (final signal, confidence score)
         """
-        # Add debug logging
-        logging.debug(f"Received predictions structure: {type(predictions)}")
-        if isinstance(predictions, dict):
-            for pred_type, model_preds in predictions.items():
-                logging.debug(f"Prediction type: {pred_type}, Type: {type(model_preds)}")
-                if isinstance(model_preds, dict):
-                    for model, pred_dict in model_preds.items():
-                        logging.debug(f"Model: {model}, Type: {type(pred_dict)}")
-                        if isinstance(pred_dict, dict):
-                            logging.debug(f"First prediction value: {next(iter(pred_dict.values())) if pred_dict else 'Empty'}")
-        
-        signals = {}
-        confidences = {}
+        results = {}
         
         try:
-            # Process each prediction type
-            for pred_type, model_preds in predictions.items():
-                if not isinstance(model_preds, dict):
-                    logging.warning(f"Invalid model predictions format for {pred_type}")
-                    continue
-                    
-                if pred_type not in signals:
-                    signals[pred_type] = {}
-                    confidences[pred_type] = {}
+            # Get all unique dates
+            dates = self._get_all_dates(predictions)
+            
+            for date in dates:
+                ensemble = EnsembleSignal(
+                    weights=self.ensemble_weights,
+                    min_agreement=self.min_agreement,
+                    confidence_scaling=self.confidence_scaling,
+                    neutral_threshold=self.neutral_threshold
+                )
                 
-                # Process each model's prediction
-                for model, pred_dict in model_preds.items():
-                    if not isinstance(pred_dict, dict):
-                        logging.warning(f"Invalid prediction format for {model} in {pred_type}")
+                # Process each prediction type
+                for pred_type, model_preds in predictions.items():
+                    if not isinstance(model_preds, dict):
                         continue
                         
-                    for date, pred in pred_dict.items():
+                    # Process each model's prediction
+                    for model, pred_dict in model_preds.items():
+                        if not isinstance(pred_dict, dict) or date not in pred_dict:
+                            continue
+                            
+                        pred = pred_dict[date]
                         try:
                             if pred_type == 'next_day':
                                 signal, confidence = self.process_next_day_signal(pred)
@@ -249,63 +309,39 @@ class SignalGenerator:
                                 signal, confidence = self.process_direction_signal(pred)
                             else:  # ternary
                                 signal, confidence = self.process_ternary_signal(pred)
+                                
+                            # Create Signal object
+                            signal_obj = Signal(
+                                value=SignalType(signal),
+                                confidence=confidence,
+                                model_type=pred_type,
+                                model_name=model,
+                                timestamp=pd.Timestamp(date)
+                            )
                             
-                            if date not in signals[pred_type]:
-                                signals[pred_type][date] = {}
-                                confidences[pred_type][date] = {}
-                            
-                            signals[pred_type][date][model] = signal
-                            confidences[pred_type][date][model] = confidence
+                            ensemble.add_signal(signal_obj)
                             
                         except Exception as e:
-                            logging.error(f"Error processing prediction for {date} from {model}: {str(e)}")
+                            logging.error(f"Error processing prediction for {model} on {date}: {str(e)}")
                             continue
-            
-            # Calculate weighted signal for each date
-            final_signals = {}
-            final_confidences = {}
-            
-            for pred_type, date_signals in signals.items():
-                for date, model_signals in date_signals.items():
-                    if date not in final_signals:
-                        final_signals[date] = []
-                        final_confidences[date] = []
-                    
-                    weight = self.ensemble_weights.get(pred_type, 1.0)
-                    for model, signal in model_signals.items():
-                        confidence = confidences[pred_type][date][model]
-                        
-                        if self.confidence_scaling:
-                            final_signals[date].append(signal * weight * confidence)
-                            final_confidences[date].append(weight * confidence)
-                        else:
-                            final_signals[date].append(signal * weight)
-                            final_confidences[date].append(weight)
-            
-            # Compute final signals for each date
-            results = {}
-            for date in final_signals:
-                total_weight = sum(final_confidences[date])
-                if total_weight > 0:
-                    ensemble_signal = sum(final_signals[date]) / total_weight
-                else:
-                    ensemble_signal = 0
                 
-                # Convert to discrete signal
-                if ensemble_signal > 0.5 / self.min_agreement:
-                    final_signal = 1
-                elif ensemble_signal < -0.5 / self.min_agreement:
-                    final_signal = -1
-                else:
-                    final_signal = 0
+                # Get final signal from ensemble
+                final_signal, final_confidence = ensemble.get_weighted_vote()
+                results[date] = (final_signal.value, final_confidence)
                 
-                results[date] = (final_signal, total_weight)
-            
-            return results
-            
         except Exception as e:
             logging.error(f"Error in aggregate_signals: {str(e)}")
             return {}
+        
+        return results
+    
+    def _get_all_dates(self, predictions: Dict[str, Dict[str, Dict[str, float]]]) -> List[str]:
+        """Get all unique dates from predictions."""
+        dates = set()
+        for model_preds in predictions.values():
+            for pred_dict in model_preds.values():
+                dates.update(pred_dict.keys())
+        return sorted(list(dates))
     
     def generate_signals(self, spread: str, date: pd.Timestamp,
                         predictions: Dict[str, Dict[str, Dict[str, float]]]) -> Dict:
