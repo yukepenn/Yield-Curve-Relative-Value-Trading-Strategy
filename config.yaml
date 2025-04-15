@@ -4,7 +4,6 @@ dv01:
   ratios:
     2s10s: 1.9  # Fixed ratio for 2s10s (can be overridden by dynamic calculation)
     5s30s: 3.5  # Fixed ratio for 5s30s
-    3m10y: 4.0  # Fixed ratio for 3m10y
 
 # Transaction Costs
 transaction_costs:
@@ -58,7 +57,9 @@ portfolio:
 
 # Paths
 paths:
-  data: "data/"
-  models: "models/"
+  data: "data/processed/"
+  model_pickles: "results/model_pickles/"
   results: "results/"
-  logs: "logs/" 
+  logs: "results/logs/"
+  signals: "results/signals/"
+  backtest: "results/backtest/" 

@@ -10,7 +10,7 @@ import logging
 import json
 from datetime import datetime, timedelta
 
-from .utils import RiskMetricsCalculator, ConfigLoader
+from .utils import RiskMetricsCalculator, ConfigLoader, SPREADS
 
 class PortfolioManager:
     """Manage portfolio of spread trading strategies."""
@@ -23,7 +23,7 @@ class PortfolioManager:
             config_path: Path to configuration file
         """
         self.config = ConfigLoader.load_config(config_path)
-        self.risk_calculator = RiskMetricsCalculator()
+        self.risk_calculator = RiskMetricsCalculator(config_path)
         
         # Load configuration parameters
         self.weighting_scheme = self.config['portfolio']['weighting_scheme']
@@ -33,12 +33,58 @@ class PortfolioManager:
         
         # Set up paths
         self.results_dir = Path(self.config['paths']['results']) / 'portfolio'
+        self.backtest_dir = Path(self.config['paths']['results']) / 'backtest'
         self.results_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize state variables
         self.weights = {}
         self.portfolio_returns = pd.Series()
         self.strategy_returns = pd.DataFrame()
+    
+    def load_backtest_results(self) -> Dict[str, pd.Series]:
+        """
+        Load backtest results for each spread.
+        
+        Returns:
+            dict: Dictionary of strategy returns
+        """
+        strategy_returns = {}
+        
+        for spread in SPREADS.keys():
+            # Load daily P&L
+            pnl_file = self.backtest_dir / f'{spread}_daily_pnl.csv'
+            if pnl_file.exists():
+                pnl_data = pd.read_csv(pnl_file)
+                pnl_data['date'] = pd.to_datetime(pnl_data['date'])
+                pnl_data.set_index('date', inplace=True)
+                
+                # Calculate returns
+                strategy_returns[spread] = pnl_data['total'] / self.config['dv01']['target']
+            else:
+                logging.warning(f"Backtest results not found for {spread}")
+        
+        return strategy_returns
+    
+    def run_analysis(self) -> Dict:
+        """
+        Run complete portfolio analysis.
+        
+        Returns:
+            dict: Analysis results
+        """
+        # Load backtest results
+        strategy_returns = self.load_backtest_results()
+        
+        if not strategy_returns:
+            raise ValueError("No backtest results found")
+        
+        # Run analysis
+        analysis = self.analyze_portfolio(strategy_returns)
+        
+        # Save results
+        self.save_results(analysis)
+        
+        return analysis
     
     def compute_portfolio_weights(self, returns: pd.DataFrame) -> Dict[str, float]:
         """
@@ -198,9 +244,6 @@ class PortfolioManager:
             'concentration': float(concentration)
         }
         
-        # Save results
-        self.save_results(analysis)
-        
         return analysis
     
     def save_results(self, analysis: Dict) -> None:
@@ -257,4 +300,42 @@ class NumpyJSONEncoder(json.JSONEncoder):
             return obj.to_dict()
         elif isinstance(obj, pd.DataFrame):
             return obj.to_dict()
-        return super().default(obj) 
+        return super().default(obj)
+
+def main():
+    """Run portfolio analysis."""
+    # Set up logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    try:
+        # Initialize portfolio manager
+        portfolio = PortfolioManager()
+        
+        # Run analysis
+        logging.info("Starting portfolio analysis...")
+        results = portfolio.run_analysis()
+        
+        # Print summary
+        logging.info("\nPortfolio Analysis Summary:")
+        for key, value in results['portfolio_metrics'].items():
+            logging.info(f"{key}: {value:.4f}")
+        
+        logging.info("\nStrategy Weights:")
+        for strategy, weight in results['weights'].items():
+            logging.info(f"{strategy}: {weight:.4f}")
+        
+        logging.info("\nRisk Contributions:")
+        for strategy, contrib in results['risk_contributions'].items():
+            logging.info(f"{strategy}: {contrib:.4f}")
+        
+        logging.info(f"\nConcentration: {results['concentration']:.4f}")
+        
+    except Exception as e:
+        logging.error(f"Error in portfolio analysis: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main() 
