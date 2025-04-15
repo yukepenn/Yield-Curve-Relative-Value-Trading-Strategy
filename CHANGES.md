@@ -1105,3 +1105,53 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
   - Added support for tuple inputs in process_ternary_signal
   - Updated docstrings and type hints
   - Improved error handling for different input types
+
+## [Unreleased]
+
+### Added
+- New utility classes for risk management and data processing
+  - DurationCalculator for bond duration calculations
+  - DV01Calculator for position risk management
+  - RiskMetricsCalculator for portfolio risk metrics
+  - ConfigLoader for configuration management
+  - DataProcessor for data validation and cleaning
+- Enhanced signal generation with improved ensemble logic
+- Added type safety with SignalType enum and Signal dataclass
+- Implemented dedicated EnsembleSignal class for better signal aggregation
+
+### Changed
+- Updated signal processing to use new Signal dataclass
+- Improved ensemble logic with weighted voting
+- Enhanced signal validation and error handling
+- Added signal smoothing with configurable window size
+- Improved logging and debugging capabilities
+
+### Fixed
+- Fixed binary direction prediction handling
+- Fixed tuple input handling in ternary signal processing
+- Fixed signal validation and error handling
+- Fixed ensemble voting logic
+- Fixed signal history tracking
+
+## [0.1.0] - 2024-03-19
+
+### Added
+- Initial project setup
+- Core signal generation logic
+- Basic ensemble signal aggregation
+- Simple signal validation
+- Basic error handling
+- Initial logging setup
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+## April 15, 2024
+- Removed 2s5s and 10s30s spreads from configuration
+- Updated backtest.py to only handle 2s10s and 5s30s spreads
+- Simplified DV01 ratios in config.yaml
+- Added clearer error messages for unsupported spreads
+- Next steps: test backtest with simplified spread configuration

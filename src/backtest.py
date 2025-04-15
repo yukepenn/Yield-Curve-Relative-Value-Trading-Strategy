@@ -4,20 +4,28 @@ Trade execution simulation module for yield curve trading strategy.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 from pathlib import Path
 import logging
 from datetime import datetime, timedelta
 import json
+import sys
 
-from .utils import (
+# Add the project root to the Python path
+project_root = str(Path(__file__).parent.parent)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from src.utils import (
     DurationCalculator,
     DV01Calculator,
     RiskMetricsCalculator,
     ConfigLoader,
-    DataProcessor
+    DataProcessor,
+    SPREADS,
+    SignalProcessor
 )
-from .signal_generator import SignalGenerator
+from src.signal_generator import SignalGenerator, SignalType
 
 class BacktestEngine:
     """Simulate trading based on model signals."""
@@ -31,60 +39,93 @@ class BacktestEngine:
         """
         self.config = ConfigLoader.load_config(config_path)
         self.signal_generator = SignalGenerator(config_path)
-        self.dv01_calculator = DV01Calculator()
-        self.risk_calculator = RiskMetricsCalculator()
+        self.signal_processor = SignalProcessor(config_path)
+        self.dv01_calculator = DV01Calculator(config_path)
+        self.risk_calculator = RiskMetricsCalculator(config_path)
+        self.data_processor = DataProcessor(config_path)
         
         # Initialize state variables
-        self.positions = {}  # Current positions for each spread
-        self.trade_history = []  # List of all trades
-        self.daily_pnl = pd.DataFrame()  # Daily P&L for each spread
-        self.portfolio_history = pd.DataFrame()  # Portfolio value history
+        self.positions = {spread: {'short_term': {'size': 0, 'yield': 0}, 
+                                 'long_term': {'size': 0, 'yield': 0}} 
+                         for spread in SPREADS.keys()}
+        self.trade_history = []
+        self.daily_pnl = pd.DataFrame()
+        self.portfolio_history = pd.DataFrame()
         
         # Load configuration parameters
         self.dv01_target = self.config['dv01']['target']
         self.transaction_costs = self.config['transaction_costs']
         self.rebalancing_freq = self.config['position']['rebalancing']['frequency']
         self.rebalancing_threshold = self.config['position']['rebalancing']['threshold_pct']
+        self.max_dv01_per_spread = self.config['position']['max_position']['dv01_per_spread']
+        self.max_portfolio_dv01 = self.config['position']['max_position']['total_portfolio']
         
         # Set up paths
         self.results_dir = Path(self.config['paths']['results']) / 'backtest'
         self.results_dir.mkdir(parents=True, exist_ok=True)
     
-    def compute_position_size(self, spread: str, signal: int, 
-                            yields: Dict[str, float]) -> Dict[str, float]:
+    def load_signals(self) -> Dict[str, pd.DataFrame]:
+        """
+        Load signals from JSON files and convert to DataFrame format.
+        
+        Returns:
+            dict: Dictionary of DataFrames with signals for each spread
+        """
+        signals = {}
+        for spread in SPREADS.keys():
+            signal_path = Path(self.config['paths']['results']) / 'signals' / f'{spread}_signals.json'
+            if signal_path.exists():
+                with open(signal_path, 'r') as f:
+                    signal_data = json.load(f)
+                
+                # Convert to DataFrame
+                df = pd.DataFrame(signal_data)
+                df['date'] = pd.to_datetime(df['date'])
+                df.set_index('date', inplace=True)
+                signals[spread] = df
+                logging.info(f"Loaded {len(df)} signals for {spread}")
+            else:
+                logging.error(f"Signal file not found: {signal_path}")
+                return {}
+        
+        return signals
+    
+    def process_signal(self, signal_data: Dict) -> Tuple[SignalType, float]:
+        """
+        Process a signal from the signal generator.
+        
+        Args:
+            signal_data: Dictionary containing signal information
+            
+        Returns:
+            tuple: (signal direction, confidence)
+        """
+        return self.signal_processor.validate_signal(signal_data)
+    
+    def compute_position_size(self, spread: str, signal: SignalType, 
+                            yields: Dict[str, float]) -> Dict[str, Dict[str, float]]:
         """
         Compute DV01-neutral position sizes for a spread trade.
         
         Args:
             spread: Name of the spread (e.g., '2s10s')
-            signal: Trading signal (1 for steepener, -1 for flattener, 0 for neutral)
+            signal: Trading signal
             yields: Dictionary of current yields
             
         Returns:
             dict: Position sizes for each leg
-                {
-                    'short_term': {'size': float, 'yield': float},
-                    'long_term': {'size': float, 'yield': float}
-                }
         """
-        if signal == 0:
+        if signal == SignalType.NEUTRAL:
             return {'short_term': {'size': 0, 'yield': 0}, 'long_term': {'size': 0, 'yield': 0}}
         
-        # Get maturities based on spread
-        if spread == '2s10s':
-            short_maturity, long_maturity = 2, 10
-            short_yield = yields['2y']
-            long_yield = yields['10y']
-        elif spread == '5s30s':
-            short_maturity, long_maturity = 5, 30
-            short_yield = yields['5y']
-            long_yield = yields['30y']
-        else:
-            raise ValueError(f"Unsupported spread: {spread}")
+        # Get maturities and yields based on spread
+        short_maturity, long_maturity = self._get_maturities(spread)
+        short_yield = yields[SPREADS[spread][0]]
+        long_yield = yields[SPREADS[spread][1]]
         
         # Calculate DV01 ratio using utility class
         ratio = self.dv01_calculator.calculate_dv01_ratio(
-            short_maturity, long_maturity, short_yield, long_yield)
+            spread, short_maturity, long_maturity, short_yield, long_yield)
         
         # Base notional for long leg to achieve target DV01
         long_duration = self.dv01_calculator.duration_calculator.calculate_modified_duration(
@@ -92,10 +133,10 @@ class BacktestEngine:
         base_notional = abs(self.dv01_target / (long_duration * 0.0001))
         
         # Calculate notionals for both legs
-        if signal == 1:  # steepener
+        if signal == SignalType.STEEPER:
             short_size = ratio * base_notional  # long the short end
             long_size = -base_notional  # short the long end
-        else:  # flattener
+        else:  # FLATTENER
             short_size = -ratio * base_notional  # short the short end
             long_size = base_notional  # long the long end
         
@@ -121,19 +162,12 @@ class BacktestEngine:
         if not position['short_term']['size'] and not position['long_term']['size']:
             return 0.0
         
-        # Get maturities
-        if spread == '2s10s':
-            short_maturity, long_maturity = 2, 10
-            short_prev = prev_yields['2y']
-            short_curr = curr_yields['2y']
-            long_prev = prev_yields['10y']
-            long_curr = curr_yields['10y']
-        elif spread == '5s30s':
-            short_maturity, long_maturity = 5, 30
-            short_prev = prev_yields['5y']
-            short_curr = curr_yields['5y']
-            long_prev = prev_yields['30y']
-            long_curr = curr_yields['30y']
+        # Get maturities and yields
+        short_maturity, long_maturity = self._get_maturities(spread)
+        short_prev = prev_yields[SPREADS[spread][0]]
+        short_curr = curr_yields[SPREADS[spread][0]]
+        long_prev = prev_yields[SPREADS[spread][1]]
+        long_curr = curr_yields[SPREADS[spread][1]]
         
         # Calculate P&L for each leg
         short_dv01 = self.dv01_calculator.calculate_dv01(
@@ -186,176 +220,298 @@ class BacktestEngine:
         Returns:
             float: Transaction cost
         """
-        # Calculate change in position size for each leg
-        short_change = abs(new_position['short_term']['size'] - old_position['short_term']['size'])
-        long_change = abs(new_position['long_term']['size'] - old_position['long_term']['size'])
+        cost = 0.0
         
-        # Apply transaction cost in basis points
-        cost_bp = self.transaction_costs['spread_bp']
-        short_cost = short_change * cost_bp * 0.0001  # Convert bp to decimal
-        long_cost = long_change * cost_bp * 0.0001
+        # Calculate cost for each leg
+        for leg in ['short_term', 'long_term']:
+            size_change = abs(new_position[leg]['size'] - old_position[leg]['size'])
+            if size_change > 0:
+                # Cost in basis points
+                cost += size_change * self.transaction_costs['spread_bp'] / 10000
+                # Cost in DV01 terms
+                maturity = self._get_maturities(spread)[0 if leg == 'short_term' else 1]
+                dv01 = self.dv01_calculator.calculate_dv01(
+                    size_change,
+                    new_position[leg]['yield'],
+                    maturity
+                )
+                cost += dv01 * self.transaction_costs['dv01_cost']
         
-        return short_cost + long_cost
+        return cost
     
-    def needs_rebalancing(self, spread: str, position: Dict[str, Dict[str, float]],
-                         curr_yields: Dict[str, float]) -> bool:
+    def _get_maturities(self, spread: str) -> Tuple[float, float]:
+        """Get maturities for a spread."""
+        if spread == '2s10s':
+            return 2, 10
+        elif spread == '5s30s':
+            return 5, 30
+        else:
+            raise ValueError(f"Unsupported spread: {spread}. Only 2s10s and 5s30s are supported.")
+    
+    def safe_yield_lookup(self, date: pd.Timestamp, yield_data: pd.DataFrame) -> Optional[Dict]:
         """
-        Check if position needs rebalancing based on DV01 neutrality.
+        Safely look up yield data for a given date, handling missing dates.
         
         Args:
-            spread: Name of the spread
-            position: Current position
-            curr_yields: Current yields
+            date: Date to look up yield data for
+            yield_data: DataFrame containing yield data
             
         Returns:
-            bool: Whether rebalancing is needed
+            dict: Yield data for the date if available, None otherwise
         """
-        if not position['short_term']['size'] and not position['long_term']['size']:
-            return False
-        
-        # Get maturities
-        if spread == '2s10s':
-            short_maturity, long_maturity = 2, 10
-        elif spread == '5s30s':
-            short_maturity, long_maturity = 5, 30
-        
-        # Calculate current DV01s
-        short_dv01 = abs(self.dv01_calculator.calculate_dv01(
-            position['short_term']['size'],
-            curr_yields['2y' if spread == '2s10s' else '5y'],
-            short_maturity
-        ))
-        long_dv01 = abs(self.dv01_calculator.calculate_dv01(
-            position['long_term']['size'],
-            curr_yields['10y' if spread == '2s10s' else '30y'],
-            long_maturity
-        ))
-        
-        # Check if DV01 difference exceeds threshold
-        dv01_diff = abs(short_dv01 - long_dv01)
-        return dv01_diff > (self.dv01_target * self.rebalancing_threshold)
+        if date not in yield_data.index:
+            # Try to find the most recent available date
+            available_dates = yield_data.index[yield_data.index <= date]
+            if len(available_dates) == 0:
+                return None
+            most_recent = available_dates[-1]
+            logging.info(f"Using yield data from {most_recent} for {date}")
+            return yield_data.loc[most_recent].to_dict()
+        return yield_data.loc[date].to_dict()
     
-    def run_backtest(self, start_date: pd.Timestamp, end_date: pd.Timestamp,
-                    yields_data: pd.DataFrame, signals: Dict[str, pd.DataFrame]) -> Dict:
+    def run_backtest(self, start_date: Union[str, pd.Timestamp], 
+                    end_date: Union[str, pd.Timestamp]) -> Dict:
         """
         Run backtest simulation.
         
         Args:
             start_date: Start date for backtest
             end_date: End date for backtest
-            yields_data: DataFrame with daily yields
-            signals: Dictionary of signal DataFrames for each spread
             
         Returns:
             dict: Backtest results
         """
-        # Initialize results storage
-        self.positions = {
-            '2s10s': {'short_term': {'size': 0, 'yield': 0}, 'long_term': {'size': 0, 'yield': 0}},
-            '5s30s': {'short_term': {'size': 0, 'yield': 0}, 'long_term': {'size': 0, 'yield': 0}}
-        }
-        self.daily_pnl = pd.DataFrame(index=pd.date_range(start_date, end_date))
-        self.portfolio_history = pd.DataFrame(index=pd.date_range(start_date, end_date))
+        # Load signals and data
+        signals = self.load_signals()
+        if not signals:
+            raise ValueError("No signals found")
+            
+        # Load yield data
+        yield_data = self.data_processor.load_data('yields')
         
-        # Run daily simulation
-        prev_date = None
-        for date in pd.date_range(start_date, end_date):
-            if date not in yields_data.index:
+        # Initialize results
+        results = {
+            'daily_pnl': [],
+            'positions': [],
+            'trades': []
+        }
+        
+        # Run simulation
+        current_date = pd.to_datetime(start_date)
+        end_date = pd.to_datetime(end_date)
+        
+        while current_date <= end_date:
+            # Get current yields safely
+            current_yields = self.safe_yield_lookup(current_date, yield_data)
+            if current_yields is None:
+                logging.warning(f"No yield data available for or before {current_date}, skipping.")
+                current_date += timedelta(days=1)
                 continue
-            
-            curr_yields = yields_data.loc[date]
-            
-            # Process each spread
-            for spread in ['2s10s', '5s30s']:
-                if spread not in signals:
-                    continue
                 
-                # Get signal for current day
-                if date not in signals[spread].index:
+            # Process each spread
+            for spread in SPREADS.keys():
+                if current_date not in signals[spread].index:
                     continue
                     
-                signal = signals[spread].loc[date, 'signal']
+                # Get signal
+                signal_data = signals[spread].loc[current_date].to_dict()
+                signal, confidence = self.process_signal(signal_data)
                 
-                # Calculate P&L and carry if we have a position
-                if prev_date is not None:
-                    prev_yields = yields_data.loc[prev_date]
-                    pnl = self.calculate_pnl(spread, self.positions[spread], prev_yields, curr_yields)
-                    carry = self.calculate_carry(spread, self.positions[spread])
-                    self.daily_pnl.loc[date, f'{spread}_pnl'] = pnl
-                    self.daily_pnl.loc[date, f'{spread}_carry'] = carry
+                # Calculate new position
+                new_position = self.compute_position_size(spread, signal, current_yields)
                 
-                # Check if we need to update position
-                new_position = self.compute_position_size(spread, signal, curr_yields)
+                # Check position limits
+                if not self.risk_calculator.check_position_limits({spread: new_position}):
+                    logging.warning(f"Position limits exceeded for {spread} on {current_date}")
+                    new_position = {'short_term': {'size': 0, 'yield': 0}, 
+                                  'long_term': {'size': 0, 'yield': 0}}
                 
-                # Calculate transaction costs if position changes
-                costs = self.calculate_transaction_cost(spread, self.positions[spread], new_position)
-                self.daily_pnl.loc[date, f'{spread}_costs'] = costs
+                # Calculate P&L and carry
+                if current_date > pd.to_datetime(start_date):
+                    prev_date = current_date - timedelta(days=1)
+                    prev_yields = self.safe_yield_lookup(prev_date, yield_data)
+                    if prev_yields is not None:
+                        pnl = self.calculate_pnl(spread, self.positions[spread], prev_yields, current_yields)
+                        carry = self.calculate_carry(spread, self.positions[spread])
+                    else:
+                        logging.warning(f"No yield data available for or before {prev_date}, skipping P&L calculation.")
+                        pnl = 0.0
+                        carry = 0.0
+                else:
+                    pnl = 0.0
+                    carry = 0.0
                 
-                # Update position
+                # Calculate transaction costs
+                if new_position != self.positions[spread]:
+                    cost = self.calculate_transaction_cost(spread, self.positions[spread], new_position)
+                else:
+                    cost = 0.0
+                
+                # Update position and record results
+                old_position = self.positions[spread]
                 self.positions[spread] = new_position
+                results['daily_pnl'].append({
+                    'date': current_date,
+                    'spread': spread,
+                    'pnl': pnl,
+                    'carry': carry,
+                    'cost': cost,
+                    'total': pnl + carry - cost
+                })
                 
-                # Store position information
-                self.portfolio_history.loc[date, f'{spread}_short_size'] = new_position['short_term']['size']
-                self.portfolio_history.loc[date, f'{spread}_long_size'] = new_position['long_term']['size']
+                # Record trade if position changed
+                if (old_position['short_term']['size'] != new_position['short_term']['size'] or 
+                    old_position['long_term']['size'] != new_position['long_term']['size']):
+                    trade = {
+                        'date': current_date,
+                        'spread': spread,
+                        'signal': signal,
+                        'confidence': confidence,
+                        'old_position': old_position,
+                        'new_position': new_position,
+                        'cost': cost
+                    }
+                    results['trades'].append(trade)
             
-            prev_date = date
+            current_date += timedelta(days=1)
         
-        # Calculate portfolio-level metrics
-        self.daily_pnl['total_pnl'] = self.daily_pnl.filter(like='_pnl').sum(axis=1)
-        self.daily_pnl['total_carry'] = self.daily_pnl.filter(like='_carry').sum(axis=1)
-        self.daily_pnl['total_costs'] = self.daily_pnl.filter(like='_costs').sum(axis=1)
-        self.daily_pnl['net_pnl'] = self.daily_pnl['total_pnl'] + self.daily_pnl['total_carry'] - self.daily_pnl['total_costs']
+        # Convert results to DataFrames
+        results['daily_pnl'] = pd.DataFrame(results['daily_pnl'])
         
-        # Calculate cumulative P&L
-        self.portfolio_history['cumulative_pnl'] = self.daily_pnl['net_pnl'].cumsum()
+        # Convert trades list to DataFrame with proper handling of dates
+        if results['trades']:
+            trades_df = pd.DataFrame(results['trades'])
+            trades_df['date'] = pd.to_datetime(trades_df['date'])
+            results['trades'] = trades_df.reset_index(drop=True)
+        else:
+            results['trades'] = pd.DataFrame(columns=['date', 'spread', 'signal', 'confidence', 'old_position', 'new_position', 'cost'])
         
-        # Save results
-        self.save_results()
+        # Validate required columns
+        required_columns = ['date', 'spread', 'signal', 'confidence', 'old_position', 'new_position', 'cost']
+        missing_columns = [col for col in required_columns if col not in results['trades'].columns]
+        if missing_columns:
+            error_msg = f"Missing required columns in trades DataFrame: {missing_columns}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
         
-        return self.get_backtest_summary()
+        return results
+
+    def save_results(self, results: Dict) -> None:
+        """
+        Save backtest results to disk.
+        
+        Args:
+            results: Dictionary containing backtest results
+        """
+        # Save daily P&L
+        pnl_df = results['daily_pnl']
+        for spread in SPREADS.keys():
+            spread_pnl = pnl_df[pnl_df['spread'] == spread]
+            spread_pnl.to_csv(self.results_dir / f'{spread}_daily_pnl.csv', index=True)
+        
+        # Save trades
+        trades_df = results['trades']
+        trades_df.to_csv(self.results_dir / 'trades.csv', index=True)
+        
+        logging.info(f"Results saved to {self.results_dir}")
     
-    def get_backtest_summary(self) -> Dict:
+    def get_backtest_summary(self, results: Dict) -> Dict:
         """
         Generate summary statistics for the backtest.
         
+        Args:
+            results: Dictionary containing backtest results
+            
         Returns:
             dict: Summary statistics
         """
-        daily_returns = self.daily_pnl['net_pnl'] / self.dv01_target
+        pnl_df = results['daily_pnl']
+        trades_df = results['trades']
+        
+        # Calculate portfolio-level metrics
+        daily_total = pnl_df.groupby('date')['total'].sum()
+        cumulative_pnl = daily_total.cumsum()
+        
+        # Annualization factor (252 trading days)
+        ann_factor = np.sqrt(252)
         
         summary = {
-            'total_return': float(self.portfolio_history['cumulative_pnl'].iloc[-1]),
-            'sharpe_ratio': float(np.sqrt(252) * daily_returns.mean() / daily_returns.std()),
-            'max_drawdown': float(self.calculate_max_drawdown(self.portfolio_history['cumulative_pnl'])),
-            'hit_rate': float((daily_returns > 0).mean()),
-            'avg_daily_pnl': float(self.daily_pnl['net_pnl'].mean()),
-            'avg_daily_carry': float(self.daily_pnl['total_carry'].mean()),
-            'total_transaction_costs': float(self.daily_pnl['total_costs'].sum()),
-            'var_95': float(self.risk_calculator.calculate_var(daily_returns, 0.95)),
-            'expected_shortfall_95': float(self.risk_calculator.calculate_expected_shortfall(daily_returns, 0.95))
+            'total_pnl': float(cumulative_pnl.iloc[-1]),
+            'sharpe_ratio': float(ann_factor * daily_total.mean() / daily_total.std()),
+            'max_drawdown': float(self._calculate_max_drawdown(cumulative_pnl)),
+            'win_rate': float((daily_total > 0).mean()),
+            'avg_daily_pnl': float(daily_total.mean()),
+            'total_trades': len(trades_df),
+            'avg_trade_cost': float(trades_df['cost'].mean()) if len(trades_df) > 0 else 0.0,
+            'total_costs': float(pnl_df['cost'].sum())
         }
+        
+        # Add per-spread metrics
+        for spread in SPREADS.keys():
+            spread_pnl = pnl_df[pnl_df['spread'] == spread]
+            spread_daily = spread_pnl.groupby('date')['total'].sum()
+            spread_trades = trades_df[trades_df['spread'] == spread]
+            
+            summary[f'{spread}_total_pnl'] = float(spread_daily.sum())
+            summary[f'{spread}_sharpe'] = float(ann_factor * spread_daily.mean() / spread_daily.std())
+            summary[f'{spread}_trades'] = len(spread_trades)
         
         return summary
     
-    @staticmethod
-    def calculate_max_drawdown(equity_curve: pd.Series) -> float:
+    def _calculate_max_drawdown(self, equity_curve: pd.Series) -> float:
         """Calculate maximum drawdown from peak."""
         rolling_max = equity_curve.expanding().max()
         drawdowns = equity_curve - rolling_max
         return abs(float(drawdowns.min()))
+
+def main():
+    """Run backtest with generated signals."""
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
-    def save_results(self) -> None:
-        """Save backtest results to disk."""
-        # Save daily P&L
-        self.daily_pnl.to_csv(self.results_dir / 'daily_pnl.csv')
+    try:
+        # Initialize backtest engine
+        backtest = BacktestEngine()
         
-        # Save portfolio history
-        self.portfolio_history.to_csv(self.results_dir / 'portfolio_history.csv')
+        # Load signals
+        signals = backtest.load_signals()
+        if not signals:
+            logging.error("Failed to load signals")
+            return
         
-        # Save trade history
-        pd.DataFrame(self.trade_history).to_csv(self.results_dir / 'trade_history.csv', index=False)
+        # Load yield data
+        yields_path = Path('data/raw/treasury_yields.csv')
+        if yields_path.exists():
+            yields_data = pd.read_csv(yields_path, index_col=0, parse_dates=True)
+            logging.info("Loaded yield data")
+        else:
+            logging.error(f"Yield data file not found: {yields_path}")
+            return
         
-        # Save summary statistics
-        summary = self.get_backtest_summary()
-        with open(self.results_dir / 'backtest_summary.json', 'w') as f:
-            json.dump(summary, f, indent=4) 
+        # Get date range from signals
+        start_date = min(df.index[0] for df in signals.values())
+        end_date = max(df.index[-1] for df in signals.values())
+        
+        # Run backtest
+        logging.info(f"Running backtest from {start_date} to {end_date}")
+        results = backtest.run_backtest(
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Save results
+        backtest.save_results(results)
+        logging.info("Backtest completed and results saved")
+        
+        # Print summary
+        summary = backtest.get_backtest_summary(results)
+        logging.info("\nBacktest Summary:")
+        for key, value in summary.items():
+            logging.info(f"{key}: {value}")
+            
+    except Exception as e:
+        logging.error(f"Error running backtest: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main() 
