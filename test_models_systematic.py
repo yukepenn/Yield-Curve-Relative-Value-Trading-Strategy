@@ -83,7 +83,7 @@ class SystematicTester:
         Args:
             spreads: List of spreads to test. If None, tests only 2s10s and 5s30s spreads
         """
-        self.spreads = spreads if spreads else ['2s10s', '5s30s']
+        self.spreads = spreads if spreads else ['2s10s']
         self.results = {}
         self.errors = {}
         
@@ -97,11 +97,9 @@ class SystematicTester:
         self.error_logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Define prediction types and models to test
-        self.prediction_types = ['next_day', 'direction', 'ternary']
+        self.prediction_types = ['next_day']
         self.model_types = {
             'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],
-            'direction': ['mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],
-            'ternary': ['mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge']
         }
         
         # Initialize data paths
@@ -295,10 +293,19 @@ class SystematicTester:
         if 'predictions' in results:
             predictions_file = results_dir / f"{model_type}_predictions.csv"
             try:
-                predictions_df = pd.DataFrame({
-                    'date': results['predictions'].keys(),
-                    'prediction': results['predictions'].values()
-                })
+                # Pull out lists
+                preds = results['predictions']
+                acts = results.get('actuals', None)
+                dates = results.get('dates', None)
+
+                # Build data dictionary
+                data = {'prediction': preds}
+                if acts is not None:
+                    data['actual'] = acts
+                if dates is not None:
+                    data['date'] = dates
+
+                predictions_df = pd.DataFrame(data)
                 predictions_df.to_csv(predictions_file, index=False)
                 logging.info(f"Predictions saved to {predictions_file}")
             except Exception as e:
