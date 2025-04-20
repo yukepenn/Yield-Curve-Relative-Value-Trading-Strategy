@@ -1488,11 +1488,16 @@ class ModelTrainer:
 
     @staticmethod
     def run_batch_training():
-        """Run training for all spreads and prediction types."""
-        # Define spreads and prediction types
-        spreads = ['2s10s', '5s30s', '2s5s', '10s30s', '3m10y']
-        prediction_types = ['next_day', 'direction', 'ternary']
-        model_types = ['ridge', 'lasso', 'rf', 'xgb', 'lstm', 'mlp', 'arima']
+        """Run training for 2s10s spread with all prediction types and appropriate models."""
+        # Define prediction types and their corresponding models
+        prediction_models = {
+            'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],  
+            'direction': ['mlp', 'lstm', 'xgb', 'rf'],
+            'ternary': ['mlp', 'lstm', 'xgb', 'rf']
+        }
+        
+        # Focus only on 2s10s spread
+        spread = '2s10s'
         
         # Create results directories if they don't exist
         Path('results/model_training').mkdir(parents=True, exist_ok=True)
@@ -1501,69 +1506,54 @@ class ModelTrainer:
         # Initialize results DataFrame
         results_summary = []
         
-        # Run training for each combination
-        for spread in spreads:
-            for pred_type in prediction_types:
-                # Skip ternary for 10s30s as discussed
-                if spread == '10s30s' and pred_type == 'ternary':
-                    logging.info(f"Skipping {spread} {pred_type} as previously discussed")
-                    continue
+        # Run training for each prediction type and its corresponding models
+        for pred_type, model_types in prediction_models.items():
+            for model_type in model_types:
+                try:
+                    logging.info(f"Training {spread} {pred_type} with {model_type}")
                     
-                for model_type in model_types:
-                    # ARIMA only for next_day prediction
-                    if model_type == 'arima' and pred_type != 'next_day':
-                        logging.info(f"Skipping {model_type} for {pred_type} prediction")
-                        continue
+                    # Initialize trainer
+                    trainer = ModelTrainer(
+                        spread=spread,
+                        prediction_type=pred_type,
+                        model_type=model_type
+                    )
+                    
+                    # Train model
+                    results = trainer.train()
+                    
+                    if results is not None:
+                        # Add to summary
+                        summary = {
+                            'spread': spread,
+                            'prediction_type': pred_type,
+                            'model_type': model_type,
+                            'mse': results.get('mse'),
+                            'accuracy': results.get('accuracy'),
+                            'f1': results.get('f1'),
+                            'roc_auc': results.get('roc_auc'),
+                            'train_loss': results.get('train_loss'),
+                            'val_loss': results.get('val_loss'),
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                        results_summary.append(summary)
                         
-                    try:
-                        logging.info(f"Training {spread} {pred_type} with {model_type}")
+                        logging.info(f"Completed {spread} {pred_type} with {model_type}")
+                        logging.info(f"Results: {summary}")
+                    else:
+                        logging.error(f"Training failed for {spread} {pred_type} with {model_type}")
                         
-                        # Initialize trainer
-                        trainer = ModelTrainer(
-                            spread=spread,
-                            prediction_type=pred_type,
-                            model_type=model_type
-                        )
-                        
-                        # Train model
-                        results = trainer.train()
-                        
-                        if results is not None:
-                            # Add to summary
-                            summary = {
-                                'spread': spread,
-                                'prediction_type': pred_type,
-                                'model_type': model_type,
-                                'mse': results.get('mse'),
-                                'accuracy': results.get('accuracy'),
-                                'f1': results.get('f1'),
-                                'roc_auc': results.get('roc_auc'),
-                                'train_loss': results.get('train_loss'),
-                                'val_loss': results.get('val_loss'),
-                                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                            }
-                            results_summary.append(summary)
-                            
-                            logging.info(f"Completed {spread} {pred_type} with {model_type}")
-                            logging.info(f"Results: {summary}")
-                        else:
-                            logging.error(f"Training failed for {spread} {pred_type} with {model_type}")
-                        
-                    except Exception as e:
-                        logging.error(f"Error training {spread} {pred_type} with {model_type}: {str(e)}")
+                except Exception as e:
+                    logging.error(f"Error training {spread} {pred_type} with {model_type}: {str(e)}")
+                    logging.error(traceback.format_exc())
+                    continue
         
         # Save summary results
         if results_summary:
             summary_df = pd.DataFrame(results_summary)
-            summary_df.to_csv('results/model_training/summary_results.csv', index=False)
-            
-            # Also save as JSON for better readability
-            with open('results/model_training/summary_results.json', 'w') as f:
-                json.dump(results_summary, f, indent=4)
-            
-            logging.info("Training completed. Summary saved to results/model_training/summary_results.csv and .json")
-        else:
-            logging.error("No successful training runs to summarize")
+            summary_file = Path('results/model_training/training_summary.csv')
+            summary_df.to_csv(summary_file, index=False)
+            logging.info(f"Saved training summary to {summary_file}")
 
 if __name__ == "__main__":
     ModelTrainer.run_batch_training() 

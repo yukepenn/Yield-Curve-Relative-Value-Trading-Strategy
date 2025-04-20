@@ -1155,3 +1155,50 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 - Simplified DV01 ratios in config.yaml
 - Added clearer error messages for unsupported spreads
 - Next steps: test backtest with simplified spread configuration
+
+## April 6, 2024 21:00 EDT
+### Backtest Engine Improvements
+- Fixed trades DataFrame to include 'spread' column
+- Enhanced signal handling and validation
+- Improved error management and logging
+- Added type hints and documentation
+- Successfully tested backtest engine with updated signal processing
+
+### Signal Processing Enhancements
+- Updated signal generation module for better reliability
+- Improved signal validation and error handling
+- Enhanced signal aggregation logic with proper type checking
+- Added comprehensive logging for debugging purposes
+
+## April 6, 2024 22:30 EDT
+### Visualization Improvements
+- Redesigned visualization module to handle correct data structure
+- Enhanced equity curve plots with proper cumulative PnL calculation
+- Improved drawdown analysis with absolute value tracking
+- Added monthly returns heatmap with proper resampling
+- Updated trade analysis to focus on signals and confidence distributions
+- Implemented 30-day rolling correlation analysis between spreads
+- Streamlined plotting functions for better performance and clarity
+
+## April 15, 2024 23:00 EDT
+### Rolling Predictions Generation
+- Implemented day-by-day predictions from 2019 to 2025
+- Successfully generated predictions for:
+  - 2s10s spread:
+    - Next day predictions: XGB, RF, LASSO, Ridge models
+    - Direction predictions: XGB, RF models
+    - Ternary predictions: XGB, RF models
+  - 5s30s spread:
+    - Next day predictions: XGB, RF, LASSO, Ridge models
+    - Direction predictions: XGB, RF models
+    - Ternary predictions: XGB, RF models
+- Predictions stored in results/model_training/{spread}_{prediction_type}/
+- Each model's predictions include date and prediction columns
+- Generated 1,633 predictions per model covering 2019-01-01 to 2025-04-03
+
+## 2024-04-20
+- Added detailed analysis of MLP model performance for 2s10s spread prediction
+- Documented feature selection and model architecture details
+- Compared MLP performance with other models
+- Added recommendations for model improvements
+- Updated PROGRESS.md with MLP analysis section
