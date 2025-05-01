@@ -1052,23 +1052,22 @@ class ModelTrainer:
                 'actual': results['targets']  # Use 'targets' consistently
             })
             
-            # Get dates from the data directory
-            data_dir = Path('data/processed')
-            dates_file = data_dir / f"{self.spread}_data.csv"
-            if dates_file.exists():
-                dates_df = pd.read_csv(dates_file)
-                if len(dates_df) >= len(predictions_df):
-                    # Use dates from the data file
-                    predictions_df['date'] = dates_df['date'].iloc[-len(predictions_df):].values
-                else:
-                    # Create dates starting from the last available date
-                    last_date = dates_df['date'].iloc[-1]
-                    dates = pd.date_range(start=pd.to_datetime(last_date), periods=len(predictions_df))
-                    predictions_df['date'] = dates.strftime('%Y-%m-%d')
-            else:
-                # Create default dates if no data file exists
-                dates = pd.date_range(start='2010-01-01', periods=len(predictions_df))
-                predictions_df['date'] = dates.strftime('%Y-%m-%d')
+            # Add probabilities for classification tasks
+            if 'probas' in results and results['probas'] is not None:
+                probas = results['probas']
+                if self.prediction_type == 'direction':
+                    predictions_df['probability'] = probas[:, 1]  # Probability of class 1
+                elif self.prediction_type == 'ternary':
+                    for i in range(probas.shape[1]):
+                        predictions_df[f'probability_class_{i}'] = probas[:, i]
+            
+            # Use in-memory index to timestamp each prediction
+            # For time-series models the first prediction occurs after `self.sequence_length`
+            # For non-sequence models you can set seq_len=0
+            seq_len = getattr(self, 'sequence_length', 0)
+            all_dates = self.features.index[seq_len:]   # drop the first `seq_len` rows
+            # align the tail of the index to your flat prediction array
+            predictions_df['date'] = all_dates[-len(predictions_df):].strftime('%Y-%m-%d')
             
             # Save predictions to CSV
             predictions_file = results_dir / f"{self.model_type}_predictions.csv"
