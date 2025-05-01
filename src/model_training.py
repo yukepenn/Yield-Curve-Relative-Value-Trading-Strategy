@@ -26,6 +26,16 @@ from torch.cuda.amp import autocast, GradScaler
 import pynvml
 import traceback
 import warnings
+import random
+
+# Set random seeds for reproducibility
+RANDOM_SEED = 42
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
+torch.cuda.manual_seed_all(RANDOM_SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # Configure logging at the top level
 Path('results/logs').mkdir(parents=True, exist_ok=True)
@@ -239,9 +249,9 @@ class HyperparameterTuner:
         elif model_type == 'lasso':
             base_model = Lasso()
         elif model_type == 'rf':
-            base_model = RandomForestRegressor(random_state=42)
+            base_model = RandomForestRegressor(random_state=RANDOM_SEED)
         elif model_type == 'xgb':
-            base_model = xgb.XGBRegressor(random_state=42)
+            base_model = xgb.XGBRegressor(random_state=RANDOM_SEED)
         else:
             raise ValueError(f"Unsupported model type for traditional tuning: {model_type}")
         
@@ -252,7 +262,7 @@ class HyperparameterTuner:
             cv=cv,
             scoring='neg_mean_squared_error',
             n_jobs=-1,
-            random_state=42,
+            random_state=RANDOM_SEED,
             verbose=1
         )
         
@@ -659,12 +669,12 @@ class ModelTrainer:
             elif self.model_type == 'rf':
                 params = self.best_params if self.best_params else {
                     'n_estimators': 100,
-                    'random_state': 42
+                    'random_state': RANDOM_SEED
                 }
                 self.model = RandomForestRegressor(**params)
             elif self.model_type == 'xgb':
                 params = self.best_params if self.best_params else {
-                    'random_state': 42
+                    'random_state': RANDOM_SEED
                 }
                 self.model = xgb.XGBRegressor(**params)
         
@@ -681,12 +691,12 @@ class ModelTrainer:
                 params = self.best_params if self.best_params else {
                     'n_estimators': 100,
                     'class_weight': class_weight_dict,
-                    'random_state': 42
+                    'random_state': RANDOM_SEED
                 }
                 self.model = RandomForestClassifier(**params)
             elif self.model_type == 'xgb':
                 params = self.best_params if self.best_params else {
-                    'random_state': 42
+                    'random_state': RANDOM_SEED
                 }
                 if self.prediction_type == 'ternary':
                     params.update({
@@ -971,12 +981,12 @@ class ModelTrainer:
                 elif self.model_type == 'rf':
                     params = self.best_params if self.best_params else {
                         'n_estimators': 100,
-                        'random_state': 42
+                        'random_state': RANDOM_SEED
                     }
                     return RandomForestRegressor(**params)
                 elif self.model_type == 'xgb':
                     params = self.best_params if self.best_params else {
-                        'random_state': 42
+                        'random_state': RANDOM_SEED
                     }
                     return xgb.XGBRegressor(**params)
             else:  # classification tasks
@@ -992,12 +1002,12 @@ class ModelTrainer:
                     params = self.best_params if self.best_params else {
                         'n_estimators': 100,
                         'class_weight': class_weight_dict,
-                        'random_state': 42
+                        'random_state': RANDOM_SEED
                     }
                     return RandomForestClassifier(**params)
                 elif self.model_type == 'xgb':
                     params = self.best_params if self.best_params else {
-                        'random_state': 42
+                        'random_state': RANDOM_SEED
                     }
                     if self.prediction_type == 'ternary':
                         params.update({
@@ -1577,7 +1587,7 @@ class ModelTrainer:
 
     @staticmethod
     def run_batch_training():
-        """Run training for 2s10s spread with all prediction types and appropriate models."""
+        """Run training for multiple spreads with all prediction types and appropriate models."""
         # Get module-level logger
         logger = logging.getLogger("ModelTrainingBatch")
         
@@ -1588,8 +1598,8 @@ class ModelTrainer:
             'ternary': ['mlp', 'lstm', 'xgb', 'rf']
         }
         
-        # Focus only on 2s10s spread
-        spread = ['2s10s', '5s30s']
+        # Define spreads to train
+        spreads = ['2s10s', '5s30s']
         
         # Create results directory if it doesn't exist
         Path('results/model_training').mkdir(parents=True, exist_ok=True)
@@ -1597,47 +1607,50 @@ class ModelTrainer:
         # Initialize results DataFrame
         results_summary = []
         
-        # Run training for each prediction type and its corresponding models
-        for pred_type, model_types in prediction_models.items():
-            for model_type in model_types:
-                try:
-                    logger.info(f"Training {spread} {pred_type} with {model_type}")
-                    
-                    # Initialize trainer
-                    trainer = ModelTrainer(
-                        spread=spread,
-                        prediction_type=pred_type,
-                        model_type=model_type
-                    )
-                    
-                    # Train model
-                    results = trainer.train()
-                    
-                    if results is not None:
-                        # Add to summary
-                        summary = {
-                            'spread': spread,
-                            'prediction_type': pred_type,
-                            'model_type': model_type,
-                            'mse': results.get('mse'),
-                            'accuracy': results.get('accuracy'),
-                            'f1': results.get('f1'),
-                            'roc_auc': results.get('roc_auc'),
-                            'train_loss': results.get('train_loss'),
-                            'val_loss': results.get('val_loss'),
-                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        }
-                        results_summary.append(summary)
+        # Run training for each spread, prediction type, and model type
+        for spread in spreads:
+            logger.info(f"Starting training for spread: {spread}")
+            
+            for pred_type, model_types in prediction_models.items():
+                for model_type in model_types:
+                    try:
+                        logger.info(f"Training {spread} {pred_type} with {model_type}")
                         
-                        logger.info(f"Completed {spread} {pred_type} with {model_type}")
-                        logger.info(f"Results: {summary}")
-                    else:
-                        logger.error(f"Training failed for {spread} {pred_type} with {model_type}")
+                        # Initialize trainer
+                        trainer = ModelTrainer(
+                            spread=spread,
+                            prediction_type=pred_type,
+                            model_type=model_type
+                        )
                         
-                except Exception as e:
-                    logger.error(f"Error training {spread} {pred_type} with {model_type}: {str(e)}")
-                    logger.error(traceback.format_exc())
-                    continue
+                        # Train model
+                        results = trainer.train()
+                        
+                        if results is not None:
+                            # Add to summary
+                            summary = {
+                                'spread': spread,
+                                'prediction_type': pred_type,
+                                'model_type': model_type,
+                                'mse': results.get('mse'),
+                                'accuracy': results.get('accuracy'),
+                                'f1': results.get('f1'),
+                                'roc_auc': results.get('roc_auc'),
+                                'train_loss': results.get('train_loss'),
+                                'val_loss': results.get('val_loss'),
+                                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            }
+                            results_summary.append(summary)
+                            
+                            logger.info(f"Completed {spread} {pred_type} with {model_type}")
+                            logger.info(f"Results: {summary}")
+                        else:
+                            logger.error(f"Training failed for {spread} {pred_type} with {model_type}")
+                            
+                    except Exception as e:
+                        logger.error(f"Error training {spread} {pred_type} with {model_type}: {str(e)}")
+                        logger.error(traceback.format_exc())
+                        continue
         
         # Save summary results
         if results_summary:
