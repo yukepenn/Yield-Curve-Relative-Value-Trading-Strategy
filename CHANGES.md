@@ -1358,3 +1358,28 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 - 5s30s Strategy:
   - PnL: -$3,170,719.95
   - Sharpe: -15.22
+
+## [2025-04-30] (Model Training Improvements)
+### Added
+- ROC-AUC metric for classification tasks
+- Probability prediction storage
+- One-vs-rest ROC-AUC for ternary classification
+- Enhanced metrics organization
+
+### Changed
+- Standardized naming conventions across codebase
+- Improved results storage format
+- Enhanced probability handling for metrics
+- Updated CSV saving with consistent column names
+
+### Fixed
+- Metric key consistency issues
+- Results dictionary structure
+- Probability handling for ROC-AUC
+- CSV column naming consistency
+
+### Performance
+- Better metric calculation
+- Improved results organization
+- More consistent data handling
+- Enhanced error tracking
