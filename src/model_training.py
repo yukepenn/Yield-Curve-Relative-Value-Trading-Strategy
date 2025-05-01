@@ -1589,7 +1589,7 @@ class ModelTrainer:
         }
         
         # Focus only on 2s10s spread
-        spread = '2s10s'
+        spread = ['2s10s', '5s30s']
         
         # Create results directory if it doesn't exist
         Path('results/model_training').mkdir(parents=True, exist_ok=True)
