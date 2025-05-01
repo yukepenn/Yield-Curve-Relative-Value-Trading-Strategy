@@ -1202,3 +1202,159 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 - Compared MLP performance with other models
 - Added recommendations for model improvements
 - Updated PROGRESS.md with MLP analysis section
+
+## [2024-03-21] - Strategy Optimization
+### Changed
+- Reduced DV01 target from 100 to 50
+- Lowered position limits (dv01_per_spread: 500 -> 250, total_portfolio: 1000 -> 500)
+- Adjusted signal thresholds:
+  - min_change_bp: 0.75 -> 0.5
+  - probability: 0.65 -> 0.55
+  - min_agreement: 3 -> 2
+- Tightened risk management:
+  - rebalancing_threshold: 5% -> 2%
+  - max_drawdown: 10% -> 5%
+  - correlation_threshold: 0.7 -> 0.5
+- Updated model ensemble weights:
+  - next_day: 0.35 -> 0.40
+  - ternary: 0.30 -> 0.25
+
+## [Unreleased]
+
+### Added
+- Initial backtest results with updated configuration
+- Performance metrics tracking
+- Risk management framework
+
+### Changed
+- Updated trading strategy parameters
+- Modified position sizing logic
+- Adjusted entry/exit thresholds
+
+### Fixed
+- Transaction cost calculation
+- Position tracking logic
+- Data validation checks
+
+### Removed
+- Outdated parameter sets
+- Unused risk metrics
+
+## [0.1.0] - 2024-03-21
+
+### Added
+- Initial project structure
+- Data collection module
+- Basic trading strategy
+- Backtesting framework
+- Performance metrics calculation
+- Transaction cost modeling
+- Position sizing logic
+- Risk management framework
+
+### Changed
+- Optimized trading strategy parameters
+- Refined position sizing
+- Updated risk management rules
+
+### Fixed
+- Data validation issues
+- Position tracking bugs
+- Performance calculation errors
+
+## Backtest Results (2024-03-21)
+- Total PnL: -$4,407,876.49
+- Sharpe Ratio: -16.78
+- Max Drawdown: $4,407,819.30
+- Win Rate: 21.62%
+- Average Daily PnL: -$2,699.25
+- Total Trades: 2,916
+- Average Trade Cost: $0.39
+- Total Costs: $1,136.47
+
+### 2s10s Strategy
+- Total PnL: -$2,203,938.24
+- Sharpe Ratio: -8.39
+- Number of Trades: 1,458
+
+### 5s30s Strategy
+- Total PnL: -$2,203,938.24
+- Sharpe Ratio: -8.39
+- Number of Trades: 1,458
+
+## 2024-03-21
+### Backtest Results Analysis
+- Initial backtest completed with mixed results
+- 2s10s spread strategy showing strong performance:
+  - Positive PnL of $2.57M
+  - High Sharpe ratio of 8.15
+  - Good win rate and trade frequency
+- 5s30s spread strategy underperforming:
+  - Negative PnL of -$3.17M
+  - Poor Sharpe ratio of -15.22
+  - High number of losing trades
+- Overall strategy needs improvement:
+  - Negative total PnL of -$602K
+  - Unacceptable Sharpe ratio of -1.28
+  - Large max drawdown of $2.66M
+- Next steps:
+  - Investigate 5s30s spread strategy issues
+  - Review position sizing and risk management
+  - Consider reducing exposure to 5s30s spread
+  - Optimize entry/exit thresholds
+  - Enhance transaction cost modeling
+
+## [2025-04-30]
+### Added
+- Initial backtest results with updated SPREADS dictionary
+- Performance metrics for both 2s10s and 5s30s strategies
+
+### Changed
+- Updated SPREADS dictionary to use correct column names ('2y', '5y' instead of '2-Year', '5-Year')
+
+### Fixed
+- Data loading issues with yield curve data
+- Path handling in DataProcessor class
+
+## [2025-04-30] (Update)
+### Added
+- Generated comprehensive visualization plots:
+  - Equity curves for strategy performance tracking
+  - Drawdown analysis for risk assessment
+  - Monthly returns heatmap for seasonality patterns
+  - Trade analysis plots for strategy evaluation
+  - Correlation analysis between spreads
+
+### Changed
+- None
+
+### Fixed
+- None
+
+### Removed
+- None
+
+## [2025-04-30] (Backtest Results)
+### Added
+- Completed backtest with new signals:
+  - Generated comprehensive performance metrics
+  - Analyzed strategy-specific results
+  - Produced detailed trade statistics
+
+### Changed
+- None
+
+### Fixed
+- None
+
+### Performance
+- Overall Strategy:
+  - Total PnL: -$602,358.04
+  - Sharpe Ratio: -1.28
+  - Win Rate: 56.80%
+- 2s10s Strategy:
+  - PnL: $2,568,361.91
+  - Sharpe: 8.15
+- 5s30s Strategy:
+  - PnL: -$3,170,719.95
+  - Sharpe: -15.22

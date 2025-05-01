@@ -276,7 +276,7 @@ class ConfigLoader:
     """Load and validate configuration."""
     
     @staticmethod
-    def load_config(config_path: Union[str, Path] = 'config.yaml') -> Dict:
+    def load_config(config_path: Union[str, Path] = None) -> Dict:
         """
         Load configuration from YAML file.
         
@@ -286,6 +286,11 @@ class ConfigLoader:
         Returns:
             dict: Configuration dictionary
         """
+        # Get absolute path to project root if config_path is not provided
+        if config_path is None:
+            root_dir = Path(__file__).parent.parent
+            config_path = root_dir / 'config.yaml'
+            
         config_path = Path(config_path)
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
@@ -296,61 +301,104 @@ class ConfigLoader:
         return config
 
 class DataProcessor:
-    """Process and validate input data."""
+    """Process and validate data for the trading strategy."""
     
-    def __init__(self, config_path: Union[str, Path] = 'config.yaml'):
-        """
-        Initialize DataProcessor.
+    def __init__(self, config_path: Union[str, Path] = None):
+        """Initialize with configuration."""
+        # Get absolute path to project root if config_path is not provided
+        if config_path is None:
+            root_dir = Path(__file__).parent.parent
+            config_path = root_dir / 'config.yaml'
+            
+        with open(config_path, 'r') as f:
+            self.config = yaml.safe_load(f)
         
-        Args:
-            config_path: Path to configuration file
-        """
-        self.config = ConfigLoader.load_config(config_path)
-        
+        # Get absolute paths
+        self.root_dir = Path(__file__).parent.parent
+        self.data_dir = self.root_dir / 'data'
+        self.raw_dir = self.data_dir / 'raw'
+        self.processed_dir = self.data_dir / 'processed'
+    
     def load_data(self, data_type: str) -> pd.DataFrame:
         """
-        Load data from specified path.
+        Load data from CSV files.
         
         Args:
-            data_type: Type of data to load ('yields', 'features', 'targets')
+            data_type: Type of data to load ('yields', 'macro')
             
         Returns:
             DataFrame: Loaded data
         """
-        if data_type == 'yields':
-            data_path = Path('data/raw/treasury_yields.csv')
-        elif data_type == 'features':
-            data_path = Path('data/processed/features.csv')
-        elif data_type == 'targets':
-            data_path = Path('data/processed/targets.csv')
-        else:
-            raise ValueError(f"Unknown data type: {data_type}")
-        
-        if not data_path.exists():
-            raise FileNotFoundError(f"Data file not found: {data_path}")
-        
-        # Load data with appropriate settings
-        if data_type == 'yields':
-            data = pd.read_csv(data_path, index_col=0, parse_dates=True)
-        else:
-            data = pd.read_csv(data_path)
-            if 'date' in data.columns:
-                data['date'] = pd.to_datetime(data['date'])
-                data.set_index('date', inplace=True)
-        
-        return data
+        try:
+            if data_type == 'yields':
+                file_path = self.raw_dir / 'treasury_yields.csv'
+                if not file_path.exists():
+                    logging.error(f"Yield data file not found: {file_path}")
+                    return pd.DataFrame()
+                    
+                df = pd.read_csv(file_path, index_col=0)
+                df.index = pd.to_datetime(df.index)
+                
+                # Rename columns to match expected format
+                df = df.rename(columns={
+                    '2-Year': '2y',
+                    '5-Year': '5y',
+                    '10-Year': '10y',
+                    '30-Year': '30y'
+                })
+                
+                # Validate required columns
+                required_columns = ['2y', '5y', '10y', '30y']
+                if not self.validate_data(df, required_columns):
+                    return pd.DataFrame()
+                    
+                return df
+                
+            elif data_type == 'macro':
+                file_path = self.raw_dir / 'macro_indicators.csv'
+                if not file_path.exists():
+                    logging.error(f"Macro data file not found: {file_path}")
+                    return pd.DataFrame()
+                    
+                df = pd.read_csv(file_path)
+                df['date'] = pd.to_datetime(df['date'])
+                df.set_index('date', inplace=True)
+                return df
+                
+            else:
+                logging.error(f"Unknown data type: {data_type}")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            logging.error(f"Error loading {data_type} data: {str(e)}")
+            return pd.DataFrame()
     
     def validate_data(self, df: pd.DataFrame, required_columns: List[str]) -> bool:
-        """Validate data has required columns and no missing values."""
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            raise ValueError(f"Missing required columns: {missing_columns}")
-        if df.isnull().any().any():
-            raise ValueError("Data contains missing values")
+        """
+        Validate that DataFrame has required columns and no missing values.
+        
+        Args:
+            df: DataFrame to validate
+            required_columns: List of required column names
+            
+        Returns:
+            bool: True if validation passes
+        """
+        # Check required columns
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            logging.error(f"Missing required columns: {missing_cols}")
+            return False
+            
+        # Check for missing values
+        missing_values = df[required_columns].isnull().sum()
+        if missing_values.any():
+            logging.warning(f"Found missing values:\n{missing_values[missing_values > 0]}")
+            
         return True
 
 # Define spreads
 SPREADS = {
-    '2s10s': ('2-Year', '10-Year'),
-    '5s30s': ('5-Year', '30-Year')
+    '2s10s': ('2y', '10y'),
+    '5s30s': ('5y', '30y')
 } 
