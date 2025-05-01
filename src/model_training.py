@@ -1056,10 +1056,13 @@ class ModelTrainer:
         results_dir.mkdir(parents=True, exist_ok=True)
         
         # Save predictions to CSV if available
-        if 'predictions' in results and 'targets' in results:
+        if 'predictions' in results and ('targets' in results or 'actuals' in results):
+            # Get actual values using either 'targets' or 'actuals' key
+            actuals = results.get('targets', results.get('actuals'))
+            
             predictions_df = pd.DataFrame({
                 'prediction': results['predictions'],
-                'actual': results['targets']  # Use 'targets' consistently
+                'actual': actuals
             })
             
             # Add probabilities for classification tasks
