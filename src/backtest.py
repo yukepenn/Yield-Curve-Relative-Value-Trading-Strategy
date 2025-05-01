@@ -30,13 +30,18 @@ from src.signal_generator import SignalGenerator, SignalType
 class BacktestEngine:
     """Simulate trading based on model signals."""
     
-    def __init__(self, config_path: Union[str, Path] = 'config.yaml'):
+    def __init__(self, config_path: Union[str, Path] = None):
         """
         Initialize BacktestEngine.
         
         Args:
             config_path: Path to configuration file
         """
+        # Get absolute path to project root if config_path is not provided
+        if config_path is None:
+            root_dir = Path(__file__).parent.parent
+            config_path = root_dir / 'config.yaml'
+            
         self.config = ConfigLoader.load_config(config_path)
         self.signal_generator = SignalGenerator(config_path)
         self.signal_processor = SignalProcessor(config_path)

@@ -479,16 +479,19 @@ def main():
     """Main execution function."""
     logging.basicConfig(level=logging.INFO)
     
-    # Initialize signal generator
-    generator = SignalGenerator()
+    # Get absolute path to project root
+    root_dir = Path(__file__).parent.parent
+    
+    # Initialize signal generator with absolute path to config
+    generator = SignalGenerator(root_dir / 'config.yaml')
     
     # Process both spreads
     spreads = ['2s10s', '5s30s']
     for spread in spreads:
         logging.info(f"Processing signals for {spread} spread")
         
-        # Load predictions
-        predictions = load_predictions(Path('results/model_training'))  # Fixed path
+        # Load predictions using absolute path
+        predictions = load_predictions(root_dir / 'results' / 'model_training')
         if not predictions:
             logging.warning(f"No predictions found for {spread}")
             continue
@@ -542,7 +545,7 @@ def main():
         
         # Save signals
         if signals:
-            save_signals(signals, spread)
+            save_signals(signals, spread, root_dir / 'results' / 'signals')
             logging.info(f"Generated {len(signals)} signals for {spread}")
             
             # Print summary
