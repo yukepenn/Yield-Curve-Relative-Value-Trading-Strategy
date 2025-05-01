@@ -5,7 +5,7 @@ Model training module for yield curve spread prediction.
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Callable, Any
 from sklearn.linear_model import Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit, RandomizedSearchCV
@@ -704,117 +704,336 @@ class ModelTrainer:
         
         self.logger.info(f"Created {self.model_type} model for {self.prediction_type} prediction with params: {self.best_params}")
     
-    def walk_forward_validation(self, n_splits: int = 5) -> Dict:
-        """
-        Perform walk-forward validation.
-        
-        Args:
-            n_splits: Number of splits for time series cross-validation
-            
-        Returns:
-            Dictionary containing validation results
-        """
+    def _sklearn_walk_forward(
+        self,
+        model_factory: Callable[[], Any],
+        data_prep: Callable[[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]],
+        metric_funcs: Dict[str, Callable],
+        n_splits: int = 5
+    ) -> Dict:
         try:
-            # Ensure model is created if not already
-            if self.model is None:
-                self.create_model()
-                if self.model is None:
-                    raise ValueError("Failed to create model for walk-forward validation")
+            # Initialize results storage
+            all_predictions = []
+            all_targets = []
+            fold_metrics = []
+            feature_importance = []
             
+            # Create time series splits
             tscv = TimeSeriesSplit(n_splits=n_splits)
-            results = {
-                'mse': [],
-                'accuracy': [],
-                'f1': [],
-                'roc_auc': [],
-                'feature_importance': [],
-                'predictions': [],
-                'actuals': []
-            }
+            splits = list(tscv.split(self.features))
             
-            # Convert to numpy arrays for sklearn compatibility
-            X = self.features.values
-            y = self.target.values
-            
-            for train_idx, val_idx in tscv.split(X):
-                # Split data
-                X_train = X[train_idx]
-                y_train = y[train_idx]
-                X_val = X[val_idx]
-                y_val = y[val_idx]
-                
-                # Create and fit scaler on training data only
-                feature_scaler = StandardScaler()
-                X_train_scaled = feature_scaler.fit_transform(X_train)
-                X_val_scaled = feature_scaler.transform(X_val)
-                
-                # Scale targets if needed (for regression)
-                if self.prediction_type == 'next_day':
-                    target_scaler = StandardScaler()
-                    y_train_scaled = target_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
-                    y_val_scaled = target_scaler.transform(y_val.reshape(-1, 1)).ravel()
-                else:
-                    y_train_scaled = y_train
-                    y_val_scaled = y_val
+            # Iterate through folds
+            for fold, (train_idx, val_idx) in enumerate(splits, 1):
+                self.logger.info(f"Training fold {fold}/{n_splits}")
                 
                 # Create new model instance for this fold
-                self.create_model()
-                if self.model is None:
-                    raise ValueError("Failed to create model for fold")
+                model = model_factory()
+                if model is None:
+                    raise ValueError("Model factory returned None")
                 
-                # Train model
-                self.model.fit(X_train_scaled, y_train_scaled)
+                # Prepare data for this fold
+                X_train, y_train, X_val, y_val = data_prep(train_idx, val_idx)
                 
-                # Make predictions
-                if self.prediction_type == 'next_day':
-                    y_pred_scaled = self.model.predict(X_val_scaled)
-                    y_pred = target_scaler.inverse_transform(y_pred_scaled.reshape(-1, 1)).ravel()
-                    results['mse'].append(mean_squared_error(y_val, y_pred))
-                else:
-                    y_pred = self.model.predict(X_val_scaled)
-                    y_prob = self.model.predict_proba(X_val_scaled)
-                    results['accuracy'].append(accuracy_score(y_val, y_pred))
-                    results['f1'].append(f1_score(y_val, y_pred, average='weighted'))
-                    if self.prediction_type == 'direction':
-                        # Binary classification
-                        results['roc_auc'].append(roc_auc_score(y_val, y_prob[:, 1]))
-                    elif self.prediction_type == 'ternary':
-                        # Multi-class classification
-                        try:
-                            results['roc_auc'].append(roc_auc_score(y_val, y_prob, multi_class='ovo'))
-                        except Exception as e:
-                            self.logger.warning(f"Could not compute ROC-AUC for ternary classification: {str(e)}")
-                            results['roc_auc'].append(None)
+                # Train the model
+                model.fit(X_train, y_train)
                 
-                # Store predictions and actuals
-                results['predictions'].extend(y_pred)
-                results['actuals'].extend(y_val)
+                # Get predictions
+                predictions = model.predict(X_val)
                 
-                # Store feature importance if available
-                if hasattr(self.model, 'feature_importances_'):
-                    results['feature_importance'].append(
-                        pd.Series(self.model.feature_importances_, index=self.features.columns)
-                    )
+                # Calculate metrics for this fold
+                fold_result = {}
+                for metric_name, metric_func in metric_funcs.items():
+                    try:
+                        if metric_name == 'roc_auc' and self.prediction_type != 'next_day':
+                            if hasattr(model, 'predict_proba'):
+                                probas = model.predict_proba(X_val)
+                                if self.prediction_type == 'ternary':
+                                    score = roc_auc_score(y_val, probas, multi_class='ovo')
+                                else:
+                                    score = roc_auc_score(y_val, probas[:, 1])
+                            else:
+                                score = None
+                        else:
+                            score = metric_func(y_val, predictions)
+                        fold_result[metric_name] = score
+                    except Exception as e:
+                        self.logger.error(f"Error calculating {metric_name}: {str(e)}")
+                        fold_result[metric_name] = None
+                
+                fold_metrics.append(fold_result)
+                
+                # Store predictions and targets
+                all_predictions.extend(predictions)
+                all_targets.extend(y_val)
+                
+                # Get feature importance if available
+                if hasattr(model, 'feature_importances_'):
+                    feature_importance.append(model.feature_importances_)
             
-            # Calculate average metrics
-            self.results = {
-                'mse': results['mse'] if results['mse'] else None,
-                'accuracy': np.mean(results['accuracy']) if results['accuracy'] else None,
-                'f1': np.mean(results['f1']) if results['f1'] else None,
-                'roc_auc': np.mean(results['roc_auc']) if results['roc_auc'] else None,
-                'feature_importance': pd.concat(results['feature_importance'], axis=1).mean(axis=1) 
-                    if results['feature_importance'] else None,
-                'predictions': results['predictions'],
-                'actuals': results['actuals']
+            # Aggregate results
+            results = {
+                'predictions': np.array(all_predictions),
+                'targets': np.array(all_targets),
+                'fold_metrics': fold_metrics,
+                'mean_metrics': {name: np.mean([fold[name] for fold in fold_metrics]) 
+                               for name in metric_funcs.keys()},
+                'std_metrics': {name: np.std([fold[name] for fold in fold_metrics]) 
+                              for name in metric_funcs.keys()}
             }
             
-            self.logger.info(f"Completed walk-forward validation for {self.spread} {self.prediction_type}")
-            return self.results
+            # Add feature importance if available
+            if feature_importance:
+                results['feature_importance'] = np.mean(feature_importance, axis=0)
+            
+            # Move mean metrics to top level for compatibility
+            results.update(results.pop('mean_metrics'))
+            
+            return results
             
         except Exception as e:
-            self.logger.error(f"Error in walk-forward validation: {str(e)}")
-            raise  # Re-raise to prevent silent failures
+            self.logger.error(f"Error in sklearn walk-forward validation: {str(e)}\n{traceback.format_exc()}")
+            return None
+
+    def _torch_walk_forward(
+        self,
+        model_factory: Callable[[], nn.Module],
+        data_prep: Callable[[np.ndarray, np.ndarray], Tuple[DataLoader, DataLoader]],
+        metric_funcs: Dict[str, Callable],
+        n_splits: int = 5
+    ) -> Dict:
+        try:
+            # Initialize results storage
+            all_predictions = []
+            all_targets = []
+            fold_metrics = []
+            
+            # Create time series splits
+            tscv = TimeSeriesSplit(n_splits=n_splits)
+            splits = list(tscv.split(self.features))
+            
+            # Track GPU memory if available
+            if torch.cuda.is_available():
+                initial_memory = torch.cuda.memory_allocated()
+            
+            # Iterate through folds
+            for fold, (train_idx, val_idx) in enumerate(splits, 1):
+                self.logger.info(f"Training fold {fold}/{n_splits}")
+                
+                # Create new model instance for this fold
+                model = model_factory()
+                model.to(self.device)
+                
+                # Prepare data for this fold
+                train_loader, val_loader = data_prep(train_idx, val_idx)
+                
+                # Set up training
+                optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+                criterion = nn.MSELoss() if self.prediction_type == 'next_day' else nn.CrossEntropyLoss()
+                
+                # Training loop
+                best_val_loss = float('inf')
+                patience_counter = 0
+                best_state = None
+                
+                for epoch in range(self.epochs):
+                    train_loss = self._train_epoch(model, train_loader, optimizer, criterion)
+                    val_loss = self._validate(model, val_loader, criterion)
+                    
+                    if val_loss < best_val_loss:
+                        best_val_loss = val_loss
+                        patience_counter = 0
+                        best_state = model.state_dict()
+                    else:
+                        patience_counter += 1
+                        if patience_counter >= 5:  # Early stopping
+                            break
+                
+                # Load best model state
+                model.load_state_dict(best_state)
+                
+                # Get predictions
+                model.eval()
+                fold_predictions = []
+                fold_targets = []
+                
+                with torch.no_grad():
+                    for batch_x, batch_y in val_loader:
+                        batch_x = batch_x.to(self.device)
+                        outputs = model(batch_x)
+                        
+                        if self.prediction_type == 'next_day':
+                            # Inverse transform predictions for regression
+                            preds = self.target_scaler.inverse_transform(
+                                outputs.cpu().numpy().reshape(-1, 1)).flatten()
+                        else:
+                            # Get class predictions for classification
+                            preds = outputs.argmax(dim=1).cpu().numpy()
+                        
+                        fold_predictions.extend(preds)
+                        fold_targets.extend(batch_y.cpu().numpy())
+                
+                # Calculate metrics for this fold
+                fold_result = {}
+                for metric_name, metric_func in metric_funcs.items():
+                    try:
+                        if metric_name == 'roc_auc' and self.prediction_type != 'next_day':
+                            # Get probabilities for ROC-AUC
+                            probas = torch.softmax(outputs, dim=1).cpu().numpy()
+                            if self.prediction_type == 'ternary':
+                                score = roc_auc_score(fold_targets, probas, multi_class='ovo')
+                            else:
+                                score = roc_auc_score(fold_targets, probas[:, 1])
+                        else:
+                            score = metric_func(fold_targets, fold_predictions)
+                        fold_result[metric_name] = score
+                    except Exception as e:
+                        self.logger.error(f"Error calculating {metric_name}: {str(e)}")
+                        fold_result[metric_name] = None
+                
+                fold_metrics.append(fold_result)
+                
+                # Store predictions and targets
+                all_predictions.extend(fold_predictions)
+                all_targets.extend(fold_targets)
+                
+                # Clean up GPU memory
+                if torch.cuda.is_available():
+                    model.cpu()
+                    torch.cuda.empty_cache()
+            
+            # Aggregate results
+            results = {
+                'predictions': np.array(all_predictions),
+                'targets': np.array(all_targets),
+                'fold_metrics': fold_metrics,
+                'mean_metrics': {name: np.mean([fold[name] for fold in fold_metrics]) 
+                               for name in metric_funcs.keys()},
+                'std_metrics': {name: np.std([fold[name] for fold in fold_metrics]) 
+                              for name in metric_funcs.keys()}
+            }
+            
+            # Move mean metrics to top level for compatibility
+            results.update(results.pop('mean_metrics'))
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error in PyTorch walk-forward validation: {str(e)}\n{traceback.format_exc()}")
+            return None
+
+    def train_lstm(self) -> Dict:
+        """Train LSTM model using PyTorch walk-forward validation."""
+        def model_factory():
+            return self._create_lstm_model()
+            
+        def data_prep(train_idx, val_idx):
+            return self._prepare_lstm_data(self.features, self.target, train_idx, val_idx)
+            
+        metric_funcs = {
+            'mse': mean_squared_error,
+            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
+            'f1': f1_score if self.prediction_type != 'next_day' else None,
+            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
+        }
+        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
+        
+        return self._torch_walk_forward(model_factory, data_prep, metric_funcs)
     
+    def train_mlp(self) -> Dict:
+        """Train MLP model using PyTorch walk-forward validation."""
+        def model_factory():
+            return self._create_mlp_model()
+            
+        def data_prep(train_idx, val_idx):
+            return self._prepare_mlp_data(self.features, self.target, train_idx, val_idx)
+            
+        metric_funcs = {
+            'mse': mean_squared_error,
+            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
+            'f1': f1_score if self.prediction_type != 'next_day' else None,
+            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
+        }
+        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
+        
+        return self._torch_walk_forward(model_factory, data_prep, metric_funcs)
+    
+    def walk_forward_validation(self, n_splits: int = 5) -> Dict:
+        """Train traditional models using sklearn walk-forward validation."""
+        def model_factory():
+            """Create a fresh model instance with appropriate parameters."""
+            if self.prediction_type == 'next_day':
+                if self.model_type == 'ridge':
+                    params = self.best_params if self.best_params else {'alpha': 1.0}
+                    return Ridge(**params)
+                elif self.model_type == 'lasso':
+                    params = self.best_params if self.best_params else {'alpha': 1.0}
+                    return Lasso(**params)
+                elif self.model_type == 'rf':
+                    params = self.best_params if self.best_params else {
+                        'n_estimators': 100,
+                        'random_state': 42
+                    }
+                    return RandomForestRegressor(**params)
+                elif self.model_type == 'xgb':
+                    params = self.best_params if self.best_params else {
+                        'random_state': 42
+                    }
+                    return xgb.XGBRegressor(**params)
+            else:  # classification tasks
+                # Handle class imbalance
+                class_weights = compute_class_weight(
+                    'balanced',
+                    classes=np.unique(self.target),
+                    y=self.target
+                )
+                class_weight_dict = dict(zip(np.unique(self.target), class_weights))
+                
+                if self.model_type == 'rf':
+                    params = self.best_params if self.best_params else {
+                        'n_estimators': 100,
+                        'class_weight': class_weight_dict,
+                        'random_state': 42
+                    }
+                    return RandomForestClassifier(**params)
+                elif self.model_type == 'xgb':
+                    params = self.best_params if self.best_params else {
+                        'random_state': 42
+                    }
+                    if self.prediction_type == 'ternary':
+                        params.update({
+                            'objective': 'multi:softmax',
+                            'num_class': 3
+                        })
+                    else:
+                        params.update({
+                            'objective': 'binary:logistic'
+                        })
+                    return xgb.XGBClassifier(**params)
+            
+            raise ValueError(f"Unsupported model type: {self.model_type}")
+            
+        def data_prep(train_idx, val_idx):
+            X_train = self.features.iloc[train_idx]
+            y_train = self.target.iloc[train_idx]
+            X_val = self.features.iloc[val_idx]
+            y_val = self.target.iloc[val_idx]
+            
+            # Scale features
+            X_train = self.feature_scaler.fit_transform(X_train)
+            X_val = self.feature_scaler.transform(X_val)
+            
+            return X_train, y_train, X_val, y_val
+            
+        metric_funcs = {
+            'mse': mean_squared_error,
+            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
+            'f1': f1_score if self.prediction_type != 'next_day' else None,
+            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
+        }
+        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
+        
+        return self._sklearn_walk_forward(model_factory, data_prep, metric_funcs, n_splits)
+
     def save_model(self) -> None:
         """Save trained model to disk."""
         model_file = self.models_dir / f"{self.spread}_{self.prediction_type}_{self.model_type}.pkl"
@@ -827,12 +1046,10 @@ class ModelTrainer:
         results_dir.mkdir(parents=True, exist_ok=True)
         
         # Save predictions to CSV if available
-        if 'predictions' in results and 'actuals' in results:
-            # Convert actuals to regular floats if they are in list format
-            actuals = [float(val[0]) if isinstance(val, list) else float(val) for val in results['actuals']]
+        if 'predictions' in results and 'targets' in results:
             predictions_df = pd.DataFrame({
                 'prediction': results['predictions'],
-                'actual': actuals
+                'actual': results['targets']  # Use 'targets' consistently
             })
             
             # Get dates from the data directory
@@ -858,38 +1075,34 @@ class ModelTrainer:
             predictions_df.to_csv(predictions_file, index=False)
             self.logger.info(f"Saved predictions to {predictions_file}")
         
-        # Prepare metrics dictionary and ensure all values are JSON serializable
+        # Prepare metrics dictionary
         metrics = {
             'spread': self.spread,
             'prediction_type': self.prediction_type,
             'model_type': self.model_type,
             'num_features': int(len(self.features.columns)),
             'selected_features': list(self.features.columns),
-            'mse': ensure_json_serializable(results.get('mse')),
-            'accuracy': ensure_json_serializable(results.get('accuracy')),
-            'f1': ensure_json_serializable(results.get('f1')),
-            'roc_auc': ensure_json_serializable(results.get('roc_auc')),
             'device': str(self.device),
             'timestamp': datetime.now().isoformat()
         }
         
-        # Add optional metrics if they exist
-        if 'train_loss' in results:
-            metrics['train_loss'] = ensure_json_serializable(results['train_loss'])
-        if 'val_loss' in results:
-            metrics['val_loss'] = ensure_json_serializable(results['val_loss'])
-        if 'best_epoch' in results:
-            metrics['best_epoch'] = ensure_json_serializable(results['best_epoch'])
-        if 'training_time' in results:
-            metrics['training_time'] = ensure_json_serializable(results['training_time'])
+        # Add metrics from results
+        for key in ['mse', 'accuracy', 'f1', 'roc_auc']:
+            if key in results:
+                metrics[key] = ensure_json_serializable(results[key])
         
-        # Handle feature importance separately to ensure proper serialization
-        fi = results.get('feature_importance')
-        if fi is not None:
-            metrics['feature_importance'] = ensure_json_serializable(fi)
-        else:
-            metrics['feature_importance'] = {}
-
+        # Add fold metrics
+        if 'fold_metrics' in results:
+            metrics['fold_metrics'] = ensure_json_serializable(results['fold_metrics'])
+        
+        # Add standard deviations if available
+        if 'std_metrics' in results:
+            metrics['metric_std'] = ensure_json_serializable(results['std_metrics'])
+        
+        # Add feature importance if available
+        if 'feature_importance' in results:
+            metrics['feature_importance'] = ensure_json_serializable(results['feature_importance'])
+        
         # Save to JSON using the custom encoder
         results_file = results_dir / f"{self.model_type}_results.json"
         try:
@@ -985,202 +1198,224 @@ class ModelTrainer:
             self.logger.error(f"Error in LSTM data preparation: {str(e)}")
             raise  # Re-raise to prevent silent failures
 
-    def _train_lstm_epoch(self, model: nn.Module, train_loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
-        """Train LSTM model for one epoch."""
-        model.train()
-        total_loss = 0
-        num_batches = 0
+    def _create_mlp_model(self) -> nn.Module:
+        """Create MLP model based on prediction type."""
+        input_size = len(self.features.columns)
         
+        if self.prediction_type == 'next_day':
+            output_size = 1
+        elif self.prediction_type == 'direction':
+            output_size = 2
+        else:  # ternary
+            output_size = 3
+            
+        model = MLPModel(
+            input_size=input_size,
+            hidden_sizes=self.hidden_sizes,
+            output_size=output_size,
+            dropout=self.dropout
+        ).to(self.device)
+        
+        return model
+
+    def _prepare_mlp_data(self, features: pd.DataFrame, target: pd.Series, 
+                          train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
         try:
-            if torch.cuda.is_available():
-                gpu_stats = self._get_gpu_utilization()
-                if gpu_stats:
-                    self.logger.info(f"Start of epoch - GPU memory usage: {gpu_stats['memory_allocated']:.2f} GB")
-                    self.logger.info(f"GPU utilization: {gpu_stats['gpu_util']}%  |  GPU memory utilization: {gpu_stats['memory_util']}%")
+            # Scale features
+            X_train = features.iloc[train_idx].astype(np.float32)
+            X_val = features.iloc[val_idx].astype(np.float32)
             
-            for batch_features, batch_targets in train_loader:
-                batch_features = batch_features.to(self.device)
-                batch_targets = batch_targets.to(self.device)
-                
-                with autocast():
-                    outputs = model(batch_features)
-                    loss = criterion(outputs, batch_targets)
-                
-                # Scale loss and backpropagate using amp_scaler
-                self.amp_scaler.scale(loss).backward()
-                
-                # Gradient clipping
-                self.amp_scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                
-                # Update weights
-                self.amp_scaler.step(optimizer)
-                self.amp_scaler.update()
-                optimizer.zero_grad(set_to_none=True)
-                
-                total_loss += loss.item()
-                num_batches += 1
+            # Fit scaler on training data only
+            X_train_scaled = self.feature_scaler.fit_transform(X_train)
+            X_val_scaled = self.feature_scaler.transform(X_val)
             
-            # Handle case where no batches were processed
-            if num_batches == 0:
-                self.logger.warning("No batches processed in epoch - returning 0.0 loss")
-                return 0.0
+            if self.prediction_type == 'next_day':
+                # Scale targets for regression
+                y_train = target.iloc[train_idx].values.reshape(-1, 1).astype(np.float32)
+                y_val = target.iloc[val_idx].values.reshape(-1, 1).astype(np.float32)
                 
-            return total_loss / num_batches
+                # Fit target scaler on training data only
+                y_train_scaled = self.target_scaler.fit_transform(y_train)
+                y_val_scaled = self.target_scaler.transform(y_val)
+                
+                y_train = torch.FloatTensor(y_train_scaled)
+                y_val = torch.FloatTensor(y_val_scaled)
+            else:
+                # For classification, convert targets to integers
+                y_train = torch.LongTensor(target.iloc[train_idx].values.astype(np.int64))
+                y_val = torch.LongTensor(target.iloc[val_idx].values.astype(np.int64))
             
+            X_train = torch.FloatTensor(X_train_scaled)
+            X_val = torch.FloatTensor(X_val_scaled)
+            
+            train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
+            val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
+            
+            train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
+            
+            return train_loader, val_loader
         except Exception as e:
-            self.logger.error(f"Error in training epoch: {str(e)}")
-            raise
+            self.logger.error(f"Error in MLP data preparation: {str(e)}")
+            raise  # Re-raise to prevent silent failures
 
-    def _validate_lstm(self, model: nn.Module, val_loader: DataLoader, criterion: nn.Module) -> float:
-        """Validate LSTM model."""
-        model.eval()
-        total_loss = 0
+    def _train_epoch(self, model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
+        """Run one training epoch.
         
-        with torch.no_grad():
-            for batch_features, batch_targets in val_loader:
-                batch_features = batch_features.to(self.device)
-                batch_targets = batch_targets.to(self.device)
-                
-                outputs = model(batch_features)
-                loss = criterion(outputs, batch_targets)
-                total_loss += loss.item()
-                
-        return total_loss / len(val_loader)
+        Args:
+            model: PyTorch model to train
+            loader: DataLoader containing training data
+            optimizer: Optimizer instance
+            criterion: Loss function
+            
+        Returns:
+            Average loss for this epoch
+        """
+        model.train()
+        total_loss = 0.0
+        for X, y in loader:
+            X, y = X.to(self.device), y.to(self.device)
+            optimizer.zero_grad()
+            with autocast():
+                preds = model(X)
+                loss = criterion(preds, y)
+            self.amp_scaler.scale(loss).backward()
+            self.amp_scaler.step(optimizer)
+            self.amp_scaler.update()
+            total_loss += loss.item() * X.size(0)
+        return total_loss / len(loader.dataset)
 
-    def train_lstm(self) -> Dict:
-        """Train LSTM model using walk-forward validation."""
+    def _validate(self, model: nn.Module, loader: DataLoader, criterion: nn.Module) -> float:
+        """Run validation on provided data.
+        
+        Args:
+            model: PyTorch model to evaluate
+            loader: DataLoader containing validation data
+            criterion: Loss function
+            
+        Returns:
+            Average validation loss
+        """
+        model.eval()
+        total_loss = 0.0
+        with torch.no_grad():
+            for X, y in loader:
+                X, y = X.to(self.device), y.to(self.device)
+                preds = model(X)
+                loss = criterion(preds, y)
+                total_loss += loss.item() * X.size(0)
+        return total_loss / len(loader.dataset)
+
+    def train(self):
+        """Train model with optional hyperparameter tuning."""
         try:
-            # Load data
+            # Load data for all model types
             features, target = self.load_data()
             if features is None or target is None:
-                self.logger.error("Failed to load data for LSTM training")
                 return None
             
-            # Initialize TimeSeriesSplit
-            tscv = TimeSeriesSplit(n_splits=5)
+            # Store data for later use
+            self.features = features
+            self.target = target
             
-            all_train_losses = []
-            all_val_losses = []
-            all_predictions = []
-            all_actuals = []
+            # Perform hyperparameter tuning if enabled
+            if self.tune_hyperparameters:
+                self._tune_hyperparameters()
             
-            # Walk-forward validation
-            for fold, (train_idx, val_idx) in enumerate(tscv.split(features)):
-                self.logger.info(f"Starting fold {fold+1}/5 of walk-forward validation")
-                
-                # Prepare data for this fold
-                train_loader, val_loader = self._prepare_lstm_data(features, target, train_idx, val_idx)
-                if train_loader is None or val_loader is None:
-                    self.logger.error(f"Failed to prepare data for fold {fold+1}")
-                    continue
-                
-                try:
-                    # Create model and optimizer
-                    model = self._create_lstm_model()
-                    optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
-                    
-                    # Set criterion based on prediction type
-                    if self.prediction_type == 'next_day':
-                        criterion = nn.MSELoss()
-                    else:
-                        criterion = nn.CrossEntropyLoss()
-                    
-                    # Training loop
-                    best_val_loss = float('inf')
-                    patience = 5
-                    patience_counter = 0
-                    best_model_state = None
-                    
-                    for epoch in range(self.epochs):
-                        self.logger.info(f"Starting epoch {epoch+1}/{self.epochs} for fold {fold+1}")
-                        train_loss = self._train_lstm_epoch(model, train_loader, optimizer, criterion)
-                        val_loss = self._validate_lstm(model, val_loader, criterion)
-                        
-                        self.logger.info(f"Fold {fold+1}, Epoch [{epoch+1}/{self.epochs}], "
-                                   f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-                        
-                        # Early stopping
-                        if val_loss < best_val_loss:
-                            best_val_loss = val_loss
-                            patience_counter = 0
-                            best_model_state = model.state_dict()
-                            self.logger.info(f"New best validation loss: {best_val_loss:.4f}")
-                        else:
-                            patience_counter += 1
-                            if patience_counter >= patience:
-                                self.logger.info(f"Early stopping triggered at epoch {epoch+1}")
-                                break
-                    
-                    # Load best model for this fold
-                    if best_model_state is not None:
-                        model.load_state_dict(best_model_state)
-                        self.logger.info(f"Loaded best model state for fold {fold+1}")
-                    
-                    # Get predictions for validation set
-                    model.eval()
-                    fold_predictions = []
-                    fold_actuals = []
-                    
-                    with torch.no_grad():
-                        for batch_features, batch_targets in val_loader:
-                            batch_features = batch_features.to(self.device)
-                            outputs = model(batch_features)
-                            
-                            if self.prediction_type == 'next_day':
-                                # Inverse transform predictions for regression
-                                outputs = self.target_scaler.inverse_transform(
-                                    outputs.cpu().numpy().reshape(-1, 1)).flatten()
-                            else:
-                                # Get class predictions for classification
-                                outputs = outputs.argmax(dim=1).cpu().numpy()
-                            
-                            fold_predictions.extend(outputs)
-                            fold_actuals.extend(batch_targets.cpu().numpy())
-                    
-                    all_predictions.extend(fold_predictions)
-                    all_actuals.extend(fold_actuals)
-                    all_train_losses.append(train_loss)
-                    all_val_losses.append(val_loss)
-                    
-                    self.logger.info(f"Completed fold {fold+1}/5 with train loss: {train_loss:.4f}, val loss: {val_loss:.4f}")
-                    
-                except Exception as e:
-                    self.logger.error(f"Error in fold {fold+1} training: {str(e)}")
-                    continue
-            
-            if not all_train_losses:
-                self.logger.error("No successful folds in LSTM training")
-                return None
-            
-            # Compute metrics based on prediction type
-            if self.prediction_type == 'next_day':
-                mse = mean_squared_error(all_actuals, all_predictions)
-                results = {
-                    'mse': mse,
-                    'train_loss': np.mean(all_train_losses),
-                    'val_loss': np.mean(all_val_losses),
-                    'predictions': all_predictions,
-                    'actuals': all_actuals
-                }
+            # Train model based on type
+            if self.model_type == 'lstm':
+                results = self.train_lstm()
+            elif self.model_type == 'mlp':
+                results = self.train_mlp()
+            elif self.model_type == 'arima':
+                results = self.train_arima()
+            elif self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
+                self.create_model()
+                results = self.walk_forward_validation()
             else:
-                accuracy = accuracy_score(all_actuals, all_predictions)
-                f1 = f1_score(all_actuals, all_predictions, average='weighted')
-                results = {
-                    'accuracy': accuracy,
-                    'f1': f1,
-                    'train_loss': np.mean(all_train_losses),
-                    'val_loss': np.mean(all_val_losses),
-                    'predictions': all_predictions,
-                    'actuals': all_actuals
-                }
+                self.logger.error(f"Unsupported model type: {self.model_type}")
+                return None
             
-            self.logger.info(f"Completed walk-forward validation for LSTM with final metrics: {results}")
+            if results is None:
+                return None
+            
+            # Add hyperparameters to results
+            if self.best_params:
+                results['hyperparameters'] = self.best_params
+            
+            # Save results
+            self.save_results(results)
+            
+            # Save model if not already saved (LSTM and MLP save per fold)
+            if self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
+                self.save_model()
+            
             return results
             
         except Exception as e:
-            self.logger.error(f"Error in LSTM training: {str(e)}")
+            self.logger.error(f"Error in training: {e}")
             return None
+
+    def _tune_hyperparameters(self) -> None:
+        """Perform hyperparameter tuning based on model type."""
+        try:
+            if self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
+                self.logger.info(f"Starting hyperparameter tuning for {self.model_type}")
+                
+                # Time-series CV for traditional models
+                tscv = TimeSeriesSplit(n_splits=5)
+                _, self.best_params = HyperparameterTuner.tune_traditional_model(
+                    self.model_type,
+                    self.features.values,
+                    self.target.values,
+                    tscv
+                )
+                
+                self.logger.info(f"Completed tuning for {self.model_type} with best parameters: {self.best_params}")
+                
+            elif self.model_type in ['mlp', 'lstm']:
+                self.logger.info(f"Starting hyperparameter tuning for {self.model_type}")
+                
+                # Deep learning models
+                tscv = TimeSeriesSplit(n_splits=5)
+                for split_i, (train_idx, val_idx) in enumerate(tscv.split(self.features), start=1):
+                    self.logger.info(f"Tuning on split {split_i}/5")
+                    self.best_params = HyperparameterTuner.tune_deep_learning(
+                        self.model_type,
+                        self.features,
+                        self.target,
+                        train_idx,
+                        val_idx
+                    )
+                    if self.best_params:
+                        self.logger.info(f"Completed split {split_i}/5 with best parameters: {self.best_params}")
+                    break  # Only use first split for tuning to save time
+                
+                # Update model parameters
+                if self.best_params:
+                    if self.model_type == 'mlp':
+                        self.hidden_sizes = self.best_params['hidden_sizes']
+                        self.dropout = self.best_params['dropout']
+                        self.learning_rate = self.best_params['learning_rate']
+                        self.batch_size = self.best_params['batch_size']
+                    else:  # lstm
+                        self.hidden_size = self.best_params['hidden_size']
+                        self.num_layers = self.best_params['num_layers']
+                        self.dropout = self.best_params['dropout']
+                        self.learning_rate = self.best_params['learning_rate']
+                        self.batch_size = self.best_params['batch_size']
+                        self.sequence_length = self.best_params['sequence_length']
+            
+            elif self.model_type == 'arima':
+                self.logger.info("Starting hyperparameter tuning for ARIMA")
+                self.best_params, _ = HyperparameterTuner.tune_arima(self.target.values)
+                self.logger.info(f"Completed ARIMA tuning with best parameters: {self.best_params}")
+            
+            self.logger.info(f"Best parameters found: {self.best_params}")
+            
+        except Exception as e:
+            self.logger.error(f"Error in hyperparameter tuning: {str(e)}")
+            self.best_params = None
 
     def _create_arima_model(self) -> ARIMA:
         """Create ARIMA model with optimal parameters."""
@@ -1340,333 +1575,6 @@ class ModelTrainer:
         except Exception as e:
             self.logger.error(f"Error in ARIMA training: {str(e)}")
             return None
-
-    def _create_mlp_model(self) -> nn.Module:
-        """Create MLP model based on prediction type."""
-        input_size = len(self.features.columns)
-        
-        if self.prediction_type == 'next_day':
-            output_size = 1
-        elif self.prediction_type == 'direction':
-            output_size = 2
-        else:  # ternary
-            output_size = 3
-            
-        model = MLPModel(
-            input_size=input_size,
-            hidden_sizes=self.hidden_sizes,
-            output_size=output_size,
-            dropout=self.dropout
-        ).to(self.device)
-        
-        return model
-
-    def _prepare_mlp_data(self, features: pd.DataFrame, target: pd.Series, 
-                          train_idx: np.ndarray, val_idx: np.ndarray) -> Tuple[DataLoader, DataLoader]:
-        try:
-            # Scale features
-            X_train = features.iloc[train_idx].astype(np.float32)
-            X_val = features.iloc[val_idx].astype(np.float32)
-            
-            # Fit scaler on training data only
-            X_train_scaled = self.feature_scaler.fit_transform(X_train)
-            X_val_scaled = self.feature_scaler.transform(X_val)
-            
-            if self.prediction_type == 'next_day':
-                # Scale targets for regression
-                y_train = target.iloc[train_idx].values.reshape(-1, 1).astype(np.float32)
-                y_val = target.iloc[val_idx].values.reshape(-1, 1).astype(np.float32)
-                
-                # Fit target scaler on training data only
-                y_train_scaled = self.target_scaler.fit_transform(y_train)
-                y_val_scaled = self.target_scaler.transform(y_val)
-                
-                y_train = torch.FloatTensor(y_train_scaled)
-                y_val = torch.FloatTensor(y_val_scaled)
-            else:
-                # For classification, convert targets to integers
-                y_train = torch.LongTensor(target.iloc[train_idx].values.astype(np.int64))
-                y_val = torch.LongTensor(target.iloc[val_idx].values.astype(np.int64))
-            
-            X_train = torch.FloatTensor(X_train_scaled)
-            X_val = torch.FloatTensor(X_val_scaled)
-            
-            train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
-            val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
-            
-            train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-            val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
-            
-            return train_loader, val_loader
-        except Exception as e:
-            self.logger.error(f"Error in MLP data preparation: {str(e)}")
-            raise  # Re-raise to prevent silent failures
-
-    def _train_mlp_epoch(self, model: nn.Module, train_loader: DataLoader, criterion: nn.Module, optimizer: torch.optim.Optimizer) -> float:
-        """Train MLP for one epoch."""
-        model.train()
-        total_loss = 0
-        
-        for batch_features, batch_targets in train_loader:
-            batch_features = batch_features.to(self.device)
-            batch_targets = batch_targets.to(self.device)
-            
-            # Forward pass
-            outputs = model(batch_features)
-            loss = criterion(outputs, batch_targets)
-            
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            total_loss += loss.item()
-            
-        return total_loss / len(train_loader)
-
-    def _validate_mlp(self, model: nn.Module, val_loader: DataLoader, criterion: nn.Module) -> float:
-        """Validate MLP model."""
-        model.eval()
-        total_loss = 0
-        
-        with torch.no_grad():
-            for batch_features, batch_targets in val_loader:
-                batch_features = batch_features.to(self.device)
-                batch_targets = batch_targets.to(self.device)
-                
-                outputs = model(batch_features)
-                loss = criterion(outputs, batch_targets)
-                total_loss += loss.item()
-                
-        return total_loss / len(val_loader)
-
-    def train_mlp(self) -> Dict:
-        """Train MLP model using walk-forward validation."""
-        try:
-            # Load data
-            features, target = self.load_data()
-            if features is None or target is None:
-                return None
-            
-            # Initialize TimeSeriesSplit
-            tscv = TimeSeriesSplit(n_splits=5)
-            
-            all_train_losses = []
-            all_val_losses = []
-            all_predictions = []
-            all_actuals = []
-            
-            # Walk-forward validation
-            for fold, (train_idx, val_idx) in enumerate(tscv.split(features)):
-                self.logger.info(f"Training fold {fold+1}/5")
-                
-                # Prepare data for this fold
-                train_loader, val_loader = self._prepare_mlp_data(features, target, train_idx, val_idx)
-                
-                # Create model and optimizer
-                model = self._create_mlp_model()
-                optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
-                
-                # Set criterion based on prediction type
-                if self.prediction_type == 'next_day':
-                    criterion = nn.MSELoss()
-                else:
-                    criterion = nn.CrossEntropyLoss()
-                
-                # Training loop
-                best_val_loss = float('inf')
-                patience = 5
-                patience_counter = 0
-                
-                for epoch in range(self.epochs):
-                    train_loss = self._train_mlp_epoch(model, train_loader, criterion, optimizer)
-                    val_loss = self._validate_mlp(model, val_loader, criterion)
-                    
-                    self.logger.info(f"Fold {fold+1}, Epoch [{epoch+1}/{self.epochs}], "
-                               f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-                    
-                    # Early stopping
-                    if val_loss < best_val_loss:
-                        best_val_loss = val_loss
-                        patience_counter = 0
-                        # Save best model for this fold
-                        torch.save(model.state_dict(), 
-                                 self.models_dir / f"{self.spread}_{self.prediction_type}_mlp_fold{fold+1}.pth")
-                    else:
-                        patience_counter += 1
-                        if patience_counter >= patience:
-                            self.logger.info(f"Early stopping triggered at epoch {epoch+1}")
-                            break
-                
-                # Load best model for this fold
-                model.load_state_dict(torch.load(
-                    self.models_dir / f"{self.spread}_{self.prediction_type}_mlp_fold{fold+1}.pth"))
-                
-                # Get predictions for validation set
-                model.eval()
-                fold_predictions = []
-                fold_actuals = []
-                
-                with torch.no_grad():
-                    for batch_features, batch_targets in val_loader:
-                        batch_features = batch_features.to(self.device)
-                        outputs = model(batch_features)
-                        
-                        if self.prediction_type == 'next_day':
-                            # Inverse transform predictions for regression
-                            outputs = self.target_scaler.inverse_transform(
-                                outputs.cpu().numpy().reshape(-1, 1)).flatten()
-                        else:
-                            # Get class predictions for classification
-                            outputs = outputs.argmax(dim=1).cpu().numpy()
-                        
-                        fold_predictions.extend(outputs)
-                        fold_actuals.extend(batch_targets.cpu().numpy())
-                
-                all_predictions.extend(fold_predictions)
-                all_actuals.extend(fold_actuals)
-                all_train_losses.append(train_loss)
-                all_val_losses.append(val_loss)
-            
-            # Compute metrics based on prediction type
-            if self.prediction_type == 'next_day':
-                mse = mean_squared_error(all_actuals, all_predictions)
-                results = {
-                    'mse': mse,
-                    'train_loss': np.mean(all_train_losses),
-                    'val_loss': np.mean(all_val_losses),
-                    'predictions': all_predictions,
-                    'actuals': all_actuals
-                }
-            else:
-                accuracy = accuracy_score(all_actuals, all_predictions)
-                f1 = f1_score(all_actuals, all_predictions, average='weighted')
-                results = {
-                    'accuracy': accuracy,
-                    'f1': f1,
-                    'train_loss': np.mean(all_train_losses),
-                    'val_loss': np.mean(all_val_losses),
-                    'predictions': all_predictions,
-                    'actuals': all_actuals
-                }
-            
-            self.logger.info(f"Completed walk-forward validation for MLP")
-            return results
-            
-        except Exception as e:
-            self.logger.error(f"Error in MLP training: {str(e)}")
-            return None
-
-    def train(self):
-        """Train model with optional hyperparameter tuning."""
-        try:
-            # Load data for all model types
-            features, target = self.load_data()
-            if features is None or target is None:
-                return None
-            
-            # Store data for later use
-            self.features = features
-            self.target = target
-            
-            # Perform hyperparameter tuning if enabled
-            if self.tune_hyperparameters:
-                self._tune_hyperparameters()
-            
-            # Train model based on type
-            if self.model_type == 'lstm':
-                results = self.train_lstm()
-            elif self.model_type == 'mlp':
-                results = self.train_mlp()
-            elif self.model_type == 'arima':
-                results = self.train_arima()
-            elif self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
-                self.create_model()
-                results = self.walk_forward_validation()
-            else:
-                self.logger.error(f"Unsupported model type: {self.model_type}")
-                return None
-            
-            if results is None:
-                return None
-            
-            # Add hyperparameters to results
-            if self.best_params:
-                results['hyperparameters'] = self.best_params
-            
-            # Save results
-            self.save_results(results)
-            
-            # Save model if not already saved (LSTM and MLP save per fold)
-            if self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
-                self.save_model()
-            
-            return results
-            
-        except Exception as e:
-            self.logger.error(f"Error in training: {e}")
-            return None
-
-    def _tune_hyperparameters(self) -> None:
-        """Perform hyperparameter tuning based on model type."""
-        try:
-            if self.model_type in ['ridge', 'lasso', 'rf', 'xgb']:
-                self.logger.info(f"Starting hyperparameter tuning for {self.model_type}")
-                
-                # Time-series CV for traditional models
-                tscv = TimeSeriesSplit(n_splits=5)
-                _, self.best_params = HyperparameterTuner.tune_traditional_model(
-                    self.model_type,
-                    self.features.values,
-                    self.target.values,
-                    tscv
-                )
-                
-                self.logger.info(f"Completed tuning for {self.model_type} with best parameters: {self.best_params}")
-                
-            elif self.model_type in ['mlp', 'lstm']:
-                self.logger.info(f"Starting hyperparameter tuning for {self.model_type}")
-                
-                # Deep learning models
-                tscv = TimeSeriesSplit(n_splits=5)
-                for split_i, (train_idx, val_idx) in enumerate(tscv.split(self.features), start=1):
-                    self.logger.info(f"Tuning on split {split_i}/5")
-                    self.best_params = HyperparameterTuner.tune_deep_learning(
-                        self.model_type,
-                        self.features,
-                        self.target,
-                        train_idx,
-                        val_idx
-                    )
-                    if self.best_params:
-                        self.logger.info(f"Completed split {split_i}/5 with best parameters: {self.best_params}")
-                    break  # Only use first split for tuning to save time
-                
-                # Update model parameters
-                if self.best_params:
-                    if self.model_type == 'mlp':
-                        self.hidden_sizes = self.best_params['hidden_sizes']
-                        self.dropout = self.best_params['dropout']
-                        self.learning_rate = self.best_params['learning_rate']
-                        self.batch_size = self.best_params['batch_size']
-                    else:  # lstm
-                        self.hidden_size = self.best_params['hidden_size']
-                        self.num_layers = self.best_params['num_layers']
-                        self.dropout = self.best_params['dropout']
-                        self.learning_rate = self.best_params['learning_rate']
-                        self.batch_size = self.best_params['batch_size']
-                        self.sequence_length = self.best_params['sequence_length']
-            
-            elif self.model_type == 'arima':
-                self.logger.info("Starting hyperparameter tuning for ARIMA")
-                self.best_params, _ = HyperparameterTuner.tune_arima(self.target.values)
-                self.logger.info(f"Completed ARIMA tuning with best parameters: {self.best_params}")
-            
-            self.logger.info(f"Best parameters found: {self.best_params}")
-            
-        except Exception as e:
-            self.logger.error(f"Error in hyperparameter tuning: {str(e)}")
-            self.best_params = None
 
     @staticmethod
     def run_batch_training():
