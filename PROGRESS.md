@@ -138,3 +138,56 @@ The project has completed initial development and testing phases. However, the l
   - Consider reducing 5s30s exposure
   - Optimize position sizing
   - Review risk management parameters
+
+## 2025-04-30 (Model Training Refactoring)
+- Implemented DRY principles in model training code:
+  - Created separate walk-forward validation functions for sklearn and PyTorch models
+  - Fixed model factory return value issues
+  - Improved data preparation interface consistency
+  - Enhanced GPU memory management
+  - Better error handling and logging
+- Key improvements:
+  - Clear separation of concerns between model types
+  - Type-safe data handling
+  - Proper model state management
+  - Consistent metric calculation
+  - Better memory efficiency
+- Next steps:
+  - Test refactored code with all model types
+  - Add comprehensive unit tests
+  - Document new API structure
+  - Optimize batch processing
+
+## 2025-04-30 (Model Training Improvements)
+- Enhanced model evaluation and results handling:
+  - Added ROC-AUC metric for classification tasks
+  - Improved probability prediction handling
+  - Standardized naming conventions
+  - Better metrics organization
+- Key improvements:
+  - Proper probability handling for ROC-AUC
+  - One-vs-rest ROC-AUC for ternary classification
+  - Consistent naming across codebase
+  - Enhanced results storage format
+- Next steps:
+  - Test ROC-AUC calculation
+  - Validate probability predictions
+  - Review saved results format
+  - Update visualization code for new metrics
+
+## 2025-04-30 (Code Polish)
+- Enhanced model training code quality:
+  - Made sklearn model factory stateless
+  - Improved ROC-AUC calculation with built-in multi-class support
+  - Removed unnecessary probability storage
+  - Cleaned up unused imports
+- Key improvements:
+  - Better state management
+  - More efficient memory usage
+  - Cleaner code organization
+  - Improved maintainability
+- Next steps:
+  - Consider refactoring hyperparameter tuning
+  - Add comprehensive unit tests
+  - Review memory usage patterns
+  - Optimize data handling
