@@ -28,6 +28,7 @@ import traceback
 import warnings
 import random
 from functools import partial
+from dateutil.relativedelta import relativedelta
 
 # Set random seeds for reproducibility
 RANDOM_SEED = 42
@@ -550,7 +551,7 @@ class ModelTrainer:
             return None
     
     def load_data(self):
-        """Load and prepare the data with selected features."""
+        """Load and prepare the data with selected features, then trim to last 6 years."""
         try:
             # Load selected features
             selected_features = self.load_selected_features()
@@ -621,6 +622,13 @@ class ModelTrainer:
             common_index = features.index.intersection(targets.index)
             features = features.loc[common_index]
             target = targets.loc[common_index, target_col]
+            
+            # ——— only keep the last 6 years of history ———
+            last_date = features.index.max()
+            cutoff    = last_date - relativedelta(years=6)
+            features  = features.loc[cutoff:]
+            target    = target.loc[cutoff:]
+            self.logger.info(f"Trimmed to last 6 years: {features.index.min()} → {features.index.max()}")
             
             # For classification tasks, remap target values and update output_size accordingly
             if self.prediction_type in ['direction', 'ternary']:
@@ -1330,11 +1338,11 @@ class ModelTrainer:
             features, target = self.load_data()
             if features is None or target is None:
                 return None
-            
+
             # Store data for later use
             self.features = features
             self.target = target
-            
+
             # Perform hyperparameter tuning if enabled
             if self.tune_hyperparameters:
                 self._tune_hyperparameters()
@@ -1434,60 +1442,12 @@ class ModelTrainer:
             self.logger.error(f"Error in hyperparameter tuning: {str(e)}")
             self.best_params = None
 
-    def _create_arima_model(self) -> ARIMA:
-        """Create ARIMA model with optimal parameters."""
-        try:
-            # Determine seasonal period based on data frequency
-            if self.features.index.freq == 'D':
-                seasonal_period = 5  # Weekly pattern
-            elif self.features.index.freq == 'W':
-                seasonal_period = 4  # Monthly pattern
-            elif self.features.index.freq == 'M':
-                seasonal_period = 12  # Yearly pattern
-            else:
-                seasonal_period = 1  # No seasonality
-            
-            # Use tuned parameters if available, otherwise use auto_arima
-            if self.best_params:
-                order = (self.best_params['p'], self.best_params['d'], self.best_params['q'])
-                self.logger.info(f"Using tuned ARIMA parameters: order={order}")
-            else:
-                # Fallback to auto_arima if no tuned parameters
-                auto_model = auto_arima(
-                    self.target,
-                    start_p=0, start_q=0, start_P=0, start_Q=0,
-                    max_p=5, max_q=5, max_P=5, max_Q=5,
-                    m=seasonal_period,
-                    seasonal=True,
-                    d=1, D=1,  # differencing
-                    trace=True,
-                    error_action='ignore',
-                    suppress_warnings=True,
-                    stepwise=True
-                )
-                order = auto_model.order
-                self.logger.info(f"Using auto-selected ARIMA parameters: order={order}")
-            
-            # Create ARIMA model with determined parameters
-            model = ARIMA(
-                self.target,
-                order=order,
-                seasonal_order=(1, 1, 1, seasonal_period) if seasonal_period > 1 else (0, 0, 0, 0)
-            )
-            
-            self.logger.info(f"Created ARIMA model with order={order}, seasonal_period={seasonal_period}")
-            return model
-            
-        except Exception as e:
-            self.logger.error(f"Error creating ARIMA model: {str(e)}")
-            return None
-
     def train_arima(self) -> Dict:
         """Train ARIMA model using walk-forward validation."""
         try:
-            # Load data
-            features, target = self.load_data()
-            if features is None or target is None:
+            # Use already loaded data from train()
+            if self.features is None or self.target is None:
+                self.logger.error("No data available for ARIMA training")
                 return None
             
             # Initialize TimeSeriesSplit
@@ -1498,12 +1458,12 @@ class ModelTrainer:
             all_mse = []
             
             # Walk-forward validation
-            for fold, (train_idx, val_idx) in enumerate(tscv.split(target)):
+            for fold, (train_idx, val_idx) in enumerate(tscv.split(self.target)):
                 self.logger.info(f"Training fold {fold+1}/5")
                 
                 # Split data
-                y_train = target.iloc[train_idx]
-                y_val = target.iloc[val_idx]
+                y_train = self.target.iloc[train_idx]
+                y_val = self.target.iloc[val_idx]
                 
                 try:
                     # Determine seasonal period based on data frequency

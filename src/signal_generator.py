@@ -7,12 +7,28 @@ import numpy as np
 import logging
 import ast
 from pathlib import Path
-from typing import Dict, List, Tuple, Union, Optional   
+from typing import Dict, List, Tuple, Union, Optional, Any   
 import json
 import yaml
 import glob
 from dataclasses import dataclass
 from enum import Enum
+import sys
+
+# Add the project root to the Python path
+project_root = str(Path(__file__).parent.parent)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from src.utils import (
+    DurationCalculator,
+    DV01Calculator,
+    RiskMetricsCalculator,
+    ConfigLoader,
+    DataProcessor,
+    SPREADS,
+    SignalProcessor
+)
 
 # Configure logging for debug and error tracking
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -98,11 +114,6 @@ class EnsembleSignal:
                 
         return max_signal, max_vote
 
-def load_config(config_path: Union[str, Path] = 'config.yaml') -> Dict:
-    """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)    
-
 class SignalGenerator:
     """Generate and aggregate trading signals from multiple models."""
     
@@ -113,7 +124,7 @@ class SignalGenerator:
         Args:
             config_path: Path to configuration file
         """
-        self.config = load_config(config_path)
+        self.config = ConfigLoader.load_config(config_path)
         self.thresholds = self.config['signal_thresholds']
         self.ensemble_weights = self.config['ensemble']['weights']
         self.confidence_scaling = self.config['ensemble']['confidence_scaling']
@@ -344,75 +355,83 @@ class SignalGenerator:
         return sorted(list(dates))
     
     def generate_signals(self, spread: str, date: pd.Timestamp,
-                        predictions: Dict[str, Dict[str, Dict[str, float]]]) -> Dict:
+                     predictions: Dict[str, Dict[str, Dict[str, float]]]) -> Dict[str, Any]:
         """
-        Generate final trading signal for a spread on a given date.
+        Generate trading signals by combining model predictions.
         
         Args:
-            spread: Name of the spread (e.g., '2s10s', '5s30s')
-            date: Trading date
-            predictions: Dictionary of model predictions by type and model
+            spread: Name of the spread
+            date: Current date
+            predictions: Dictionary containing predictions from each model type and model
             
         Returns:
-            dict: Trading signal information
+            dict: Dictionary containing signal type and confidence
         """
-        # Process individual model signals
-        model_signals = {}
-        model_confidences = {}
-        
-        # Process each prediction type
-        for pred_type, model_preds in predictions.items():
-            if pred_type not in model_signals:
-                model_signals[pred_type] = {}
-                model_confidences[pred_type] = {}
-            
-            # Process each model's prediction
-            for model, pred_dict in model_preds.items():
-                # Get prediction for this date
-                date_str = date.strftime('%Y-%m-%d')
-                if date_str not in pred_dict:
-                    logging.warning(f"No prediction found for {model} ({pred_type}) on {date_str}")
-                    continue
-                    
-                pred = pred_dict[date_str]
-                
-                try:
-                    if pred_type == 'next_day':
-                        signal, confidence = self.process_next_day_signal(pred)
-                    elif pred_type == 'direction':
-                        signal, confidence = self.process_direction_signal(pred)
-                    else:  # ternary
-                        signal, confidence = self.process_ternary_signal(pred)
-                    
-                    model_signals[pred_type][model] = signal
-                    model_confidences[pred_type][model] = confidence
-                except Exception as e:
-                    logging.error(f"Error processing {model} ({pred_type}) prediction: {str(e)}")
-                    continue
-        
-        # Aggregate signals
         try:
-            results = self.aggregate_signals(predictions)
-            date_str = date.strftime('%Y-%m-%d')
-            if date_str in results:
-                final_signal, final_confidence = results[date_str]
+            # Get thresholds from config
+            next_day_threshold = self.config['signal_thresholds']['next_day']['min_change_bp']
+            direction_threshold = self.config['signal_thresholds']['direction']['probability']
+            ternary_threshold = self.config['signal_thresholds']['ternary']['probability']
+            neutral_zone = self.config['signal_thresholds']['next_day']['neutral_zone']
+            min_agreement = self.config['signal_thresholds']['ensemble']['min_agreement']
+            
+            # Initialize vote counters
+            steepener_votes = 0
+            flattener_votes = 0
+            
+            # Process next_day predictions
+            if 'next_day' in predictions and predictions['next_day']:
+                for model, preds in predictions['next_day'].items():
+                    for date_str, pred in preds.items():
+                        if pred > next_day_threshold:
+                            steepener_votes += 1
+                        elif pred < -next_day_threshold:
+                            flattener_votes += 1
+            
+            # Process direction predictions
+            if 'direction' in predictions and predictions['direction']:
+                for model, preds in predictions['direction'].items():
+                    for date_str, pred in preds.items():
+                        if pred == 1:
+                            steepener_votes += 1
+                        elif pred == 0:
+                            flattener_votes += 1
+            
+            # Process ternary predictions
+            if 'ternary' in predictions and predictions['ternary']:
+                for model, preds in predictions['ternary'].items():
+                    for date_str, pred in preds.items():
+                        if pred == 2:  # Steepener
+                            steepener_votes += 1
+                        elif pred == 0:  # Flattener
+                            flattener_votes += 1
+            
+            # Determine final signal and confidence
+            if max(steepener_votes, flattener_votes) >= min_agreement:
+                if steepener_votes > flattener_votes:
+                    signal_type = SignalType.STEEPER
+                    confidence = steepener_votes / 3.0  # Normalize to [0,1]
+                else:
+                    signal_type = SignalType.FLATTENER
+                    confidence = flattener_votes / 3.0  # Normalize to [0,1]
             else:
-                logging.warning(f"No aggregated signal found for {date_str}")
-                final_signal = 0
-                final_confidence = 0.0
+                signal_type = SignalType.NEUTRAL
+                confidence = 0.0
+            
+            # Return simplified signal format
+            return {
+                'date': date,
+                'signal': signal_type.value,  # Store enum value for JSON serialization
+                'confidence': float(confidence)
+            }
+            
         except Exception as e:
-            logging.error(f"Error aggregating signals: {str(e)}")
-            final_signal = 0
-            final_confidence = 0.0
-        
-        return {
-            'spread': spread,
-            'date': date,
-            'signal': final_signal,
-            'confidence': final_confidence,
-            'model_signals': model_signals,
-            'model_confidences': model_confidences
-        }
+            logging.error(f"Error generating signals: {str(e)}")
+            return {
+                'date': date,
+                'signal': SignalType.NEUTRAL.value,
+                'confidence': 0.0
+            }  # Safe default
 
 def load_predictions(prediction_dir: Path) -> dict:
     """Load predictions from model-specific CSV files in directory structure."""

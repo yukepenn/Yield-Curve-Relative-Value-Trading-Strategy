@@ -1063,337 +1063,20 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 - Enhanced metadata tracking with spread and test key information
 
 ## [Unreleased]
-### Fixed
-- Fixed signal generator to handle tuple inputs in ternary signal processing
 
 ### Added
-- Comprehensive analysis of prediction file formats for different model types
-- Enhanced prediction loading with type-specific processing
-- Detailed documentation of prediction formats and their purposes
+- Centralized configuration loading through ConfigLoader
+- Configuration validation for required keys
+- Standardized configuration access across modules
 
 ### Changed
-- Updated `load_model_predictions` to handle different prediction types correctly:
-  - Next day predictions: Maintained as float values for regression
-  - Direction predictions: Converted binary (0/1) to probabilities (0.0/1.0)
-  - Ternary predictions: Maintained as integers (0/1/2) for classification
-- Improved error handling and logging in prediction loading
+- Removed duplicate configuration loading functions
+- Updated all modules to use ConfigLoader
+- Improved error handling for missing configuration
 
 ### Fixed
-- Resolved format mismatch between prediction files and signal processing
-- Standardized prediction type handling across different model outputs
-
-## April 13, 2024 - Signal Generation Fix and Rerun
-- Fixed issue with float predictions in ternary signal processing
-- Improved handling of probability-based predictions
-- Added better error handling and logging
-- Rerunning signal generation with updated code
-- Testing signal generation with both probability and class index inputs
-
-## Signal Generation Module Updates
-- Fixed handling of tuple inputs in process_ternary_signal
-- Updated process_direction_signal to handle binary predictions correctly
-- Modified prediction loading to maintain correct data types
-- Successfully generating balanced signals for both spreads
-
-## April 6, 2024
-- Fixed binary direction prediction handling in signal_generator.py
-  - Changed process_direction_signal to accept binary values (0,1) instead of probabilities
-  - Updated load_predictions to maintain integer type for direction predictions
-  - Removed probability threshold for direction signals
-  - Improved mapping: 1 -> steepener (1), 0 -> flattener (-1)
-- Fixed ternary prediction type handling in signal_generator.py
-  - Added support for tuple inputs in process_ternary_signal
-  - Updated docstrings and type hints
-  - Improved error handling for different input types
-
-## [Unreleased]
-
-### Added
-- New utility classes for risk management and data processing
-  - DurationCalculator for bond duration calculations
-  - DV01Calculator for position risk management
-  - RiskMetricsCalculator for portfolio risk metrics
-  - ConfigLoader for configuration management
-  - DataProcessor for data validation and cleaning
-- Enhanced signal generation with improved ensemble logic
-- Added type safety with SignalType enum and Signal dataclass
-- Implemented dedicated EnsembleSignal class for better signal aggregation
-
-### Changed
-- Updated signal processing to use new Signal dataclass
-- Improved ensemble logic with weighted voting
-- Enhanced signal validation and error handling
-- Added signal smoothing with configurable window size
-- Improved logging and debugging capabilities
-
-### Fixed
-- Fixed binary direction prediction handling
-- Fixed tuple input handling in ternary signal processing
-- Fixed signal validation and error handling
-- Fixed ensemble voting logic
-- Fixed signal history tracking
-
-## [0.1.0] - 2024-03-19
-
-### Added
-- Initial project setup
-- Core signal generation logic
-- Basic ensemble signal aggregation
-- Simple signal validation
-- Basic error handling
-- Initial logging setup
-
-### Changed
-- N/A
-
-### Fixed
-- N/A
-
-## April 15, 2024
-- Removed 2s5s and 10s30s spreads from configuration
-- Updated backtest.py to only handle 2s10s and 5s30s spreads
-- Simplified DV01 ratios in config.yaml
-- Added clearer error messages for unsupported spreads
-- Next steps: test backtest with simplified spread configuration
-
-## April 6, 2024 21:00 EDT
-### Backtest Engine Improvements
-- Fixed trades DataFrame to include 'spread' column
-- Enhanced signal handling and validation
-- Improved error management and logging
-- Added type hints and documentation
-- Successfully tested backtest engine with updated signal processing
-
-### Signal Processing Enhancements
-- Updated signal generation module for better reliability
-- Improved signal validation and error handling
-- Enhanced signal aggregation logic with proper type checking
-- Added comprehensive logging for debugging purposes
-
-## April 6, 2024 22:30 EDT
-### Visualization Improvements
-- Redesigned visualization module to handle correct data structure
-- Enhanced equity curve plots with proper cumulative PnL calculation
-- Improved drawdown analysis with absolute value tracking
-- Added monthly returns heatmap with proper resampling
-- Updated trade analysis to focus on signals and confidence distributions
-- Implemented 30-day rolling correlation analysis between spreads
-- Streamlined plotting functions for better performance and clarity
-
-## April 15, 2024 23:00 EDT
-### Rolling Predictions Generation
-- Implemented day-by-day predictions from 2019 to 2025
-- Successfully generated predictions for:
-  - 2s10s spread:
-    - Next day predictions: XGB, RF, LASSO, Ridge models
-    - Direction predictions: XGB, RF models
-    - Ternary predictions: XGB, RF models
-  - 5s30s spread:
-    - Next day predictions: XGB, RF, LASSO, Ridge models
-    - Direction predictions: XGB, RF models
-    - Ternary predictions: XGB, RF models
-- Predictions stored in results/model_training/{spread}_{prediction_type}/
-- Each model's predictions include date and prediction columns
-- Generated 1,633 predictions per model covering 2019-01-01 to 2025-04-03
-
-## 2024-04-20
-- Added detailed analysis of MLP model performance for 2s10s spread prediction
-- Documented feature selection and model architecture details
-- Compared MLP performance with other models
-- Added recommendations for model improvements
-- Updated PROGRESS.md with MLP analysis section
-
-## [2024-03-21] - Strategy Optimization
-### Changed
-- Reduced DV01 target from 100 to 50
-- Lowered position limits (dv01_per_spread: 500 -> 250, total_portfolio: 1000 -> 500)
-- Adjusted signal thresholds:
-  - min_change_bp: 0.75 -> 0.5
-  - probability: 0.65 -> 0.55
-  - min_agreement: 3 -> 2
-- Tightened risk management:
-  - rebalancing_threshold: 5% -> 2%
-  - max_drawdown: 10% -> 5%
-  - correlation_threshold: 0.7 -> 0.5
-- Updated model ensemble weights:
-  - next_day: 0.35 -> 0.40
-  - ternary: 0.30 -> 0.25
-
-## [Unreleased]
-
-### Added
-- Initial backtest results with updated configuration
-- Performance metrics tracking
-- Risk management framework
-
-### Changed
-- Updated trading strategy parameters
-- Modified position sizing logic
-- Adjusted entry/exit thresholds
-
-### Fixed
-- Transaction cost calculation
-- Position tracking logic
-- Data validation checks
-
-### Removed
-- Outdated parameter sets
-- Unused risk metrics
-
-## [0.1.0] - 2024-03-21
-
-### Added
-- Initial project structure
-- Data collection module
-- Basic trading strategy
-- Backtesting framework
-- Performance metrics calculation
-- Transaction cost modeling
-- Position sizing logic
-- Risk management framework
-
-### Changed
-- Optimized trading strategy parameters
-- Refined position sizing
-- Updated risk management rules
-
-### Fixed
-- Data validation issues
-- Position tracking bugs
-- Performance calculation errors
-
-## Backtest Results (2024-03-21)
-- Total PnL: -$4,407,876.49
-- Sharpe Ratio: -16.78
-- Max Drawdown: $4,407,819.30
-- Win Rate: 21.62%
-- Average Daily PnL: -$2,699.25
-- Total Trades: 2,916
-- Average Trade Cost: $0.39
-- Total Costs: $1,136.47
-
-### 2s10s Strategy
-- Total PnL: -$2,203,938.24
-- Sharpe Ratio: -8.39
-- Number of Trades: 1,458
-
-### 5s30s Strategy
-- Total PnL: -$2,203,938.24
-- Sharpe Ratio: -8.39
-- Number of Trades: 1,458
-
-## 2024-03-21
-### Backtest Results Analysis
-- Initial backtest completed with mixed results
-- 2s10s spread strategy showing strong performance:
-  - Positive PnL of $2.57M
-  - High Sharpe ratio of 8.15
-  - Good win rate and trade frequency
-- 5s30s spread strategy underperforming:
-  - Negative PnL of -$3.17M
-  - Poor Sharpe ratio of -15.22
-  - High number of losing trades
-- Overall strategy needs improvement:
-  - Negative total PnL of -$602K
-  - Unacceptable Sharpe ratio of -1.28
-  - Large max drawdown of $2.66M
-- Next steps:
-  - Investigate 5s30s spread strategy issues
-  - Review position sizing and risk management
-  - Consider reducing exposure to 5s30s spread
-  - Optimize entry/exit thresholds
-  - Enhance transaction cost modeling
-
-## [2025-04-30]
-### Added
-- Initial backtest results with updated SPREADS dictionary
-- Performance metrics for both 2s10s and 5s30s strategies
-
-### Changed
-- Updated SPREADS dictionary to use correct column names ('2y', '5y' instead of '2-Year', '5-Year')
-
-### Fixed
-- Data loading issues with yield curve data
-- Path handling in DataProcessor class
-
-## [2025-04-30] (Update)
-### Added
-- Generated comprehensive visualization plots:
-  - Equity curves for strategy performance tracking
-  - Drawdown analysis for risk assessment
-  - Monthly returns heatmap for seasonality patterns
-  - Trade analysis plots for strategy evaluation
-  - Correlation analysis between spreads
-
-### Changed
-- None
-
-### Fixed
-- None
-
-### Removed
-- None
-
-## [2025-04-30] (Backtest Results)
-### Added
-- Completed backtest with new signals:
-  - Generated comprehensive performance metrics
-  - Analyzed strategy-specific results
-  - Produced detailed trade statistics
-
-### Changed
-- None
-
-### Fixed
-- None
-
-### Performance
-- Overall Strategy:
-  - Total PnL: -$602,358.04
-  - Sharpe Ratio: -1.28
-  - Win Rate: 56.80%
-- 2s10s Strategy:
-  - PnL: $2,568,361.91
-  - Sharpe: 8.15
-- 5s30s Strategy:
-  - PnL: -$3,170,719.95
-  - Sharpe: -15.22
-
-## [2025-04-30] (Model Training Improvements)
-### Added
-- ROC-AUC metric for classification tasks
-- Probability prediction storage
-- One-vs-rest ROC-AUC for ternary classification
-- Enhanced metrics organization
-
-### Changed
-- Standardized naming conventions across codebase
-- Improved results storage format
-- Enhanced probability handling for metrics
-- Updated CSV saving with consistent column names
-
-### Fixed
-- Metric key consistency issues
-- Results dictionary structure
-- Probability handling for ROC-AUC
-- CSV column naming consistency
-
-### Performance
-- Better metric calculation
-- Improved results organization
-- More consistent data handling
-- Enhanced error tracking
-
-## [Unreleased]
-
-### Fixed
-- Fixed "Per-column arrays must each be 1-dimensional" error in model training
-- Modified `save_results` method to use `ravel()` on predictions and targets
-- Successfully trained LSTM model with proper data handling
-- Improved metric handling for multi-class classification
-- Added proper macro-averaging for F1 score in ternary classification
-- Implemented one-vs-one ROC-AUC calculation for multi-class tasks
-- Fixed "Target is multiclass but average='binary'" errors in model training
+- Inconsistent configuration loading across modules
+- Potential configuration validation issues
 
 ## [Unreleased]
 
@@ -1404,3 +1087,269 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
   - Monthly returns heatmap
   - Trade analysis plots
   - Correlation analysis plot
+
+## [Unreleased]
+
+### Added
+- Enhanced DV01 ratio configuration in config.yaml
+  - Added support for dynamic ratio calculation
+  - Made ratios optional with null values
+  - Improved error handling for zero DV01 cases
+  - Updated documentation and type hints
+
+### Changed
+- Updated DV01Calculator to handle dynamic ratios
+  - Modified calculate_dv01_ratio to check for null values
+  - Added proper type checking for ratio values
+  - Enhanced error handling and validation
+  - Improved method documentation
+
+## May 2, 2024
+- Added visualization of backtest results with comprehensive performance metrics
+  - Generated equity curves to track strategy performance over time
+  - Created drawdown analysis to identify risk periods
+  - Implemented monthly returns heatmap for performance patterns
+  - Added trade analysis plots for strategy execution
+  - Included correlation analysis between different strategies
+
+## May 2, 2024
+### Fix(ensemble): Correct ensemble weight application
+- Fixed weight lookup in EnsembleSignal.get_weighted_vote()
+- Changed weight lookup key from model_name to model_type
+- Now properly applies configured weights (35/35/30) by prediction type
+- Ensures correct weighting between next_day, direction, and ternary predictions
+- Previous implementation was using default weight of 1.0 for all signals
+
+## May 2, 2024
+### Fix(backtest): Correct DV01 calculation in rebalancing check
+- Fixed DV01 calculation to use risk_calculator instead of dv01_calculator
+- Ensures proper total DV01 calculation for rebalancing decisions
+- Maintains existing zero-division protection for neutral signals
+- No change to rebalancing logic or thresholds
+
+## May 2, 2024
+### Feat(risk): Implement comprehensive risk limits
+- Added max drawdown monitoring and enforcement
+  - Tracks equity curve in real-time
+  - Closes all positions when drawdown limit breached
+  - Uses configurable drawdown threshold (10% of initial capital)
+- Added position concentration limits
+  - Enforces maximum 30% DV01 allocation per spread
+  - Prevents excessive exposure to single strategy
+- Added correlation-based position limits
+  - Tracks rolling correlation between spread returns
+  - Prevents highly correlated positions (>0.7)
+  - Uses 60-day rolling window for calculations
+- Enhanced risk monitoring and logging
+  - Added detailed warning messages for limit breaches
+  - Tracks daily PnL per spread for correlation analysis
+  - Maintains equity curve for performance monitoring
+
+## May 2, 2024
+### Fix(signal): Correct min_agreement parameter path
+- Fixed min_agreement parameter access in SignalGenerator
+- Changed from ensemble.min_agreement to signal_thresholds.ensemble.min_agreement
+- Regenerated signals with correct ensemble configuration
+- Results show more balanced signal distribution:
+  - 2s10s: 7.5% steepener, 48.5% flattener, 44.0% neutral
+  - 5s30s: 20.3% steepener, 43.7% flattener, 36.0% neutral
+
+## May 2, 2024
+### Fix(backtest): Correct position limits enforcement
+- Fixed position limits check in backtest engine
+- Now properly checks entire portfolio when evaluating new positions
+- Maintains existing positions when limits are exceeded instead of zeroing
+- Ensures proper enforcement of:
+  - Maximum concentration (30% per spread)
+  - Total portfolio DV01 limits
+  - Correlation thresholds
+  - Per-spread DV01 limits
+
+## May 2, 2024
+### Fix(backtest): Enforce position concentration limits in sizing
+- Modified compute_position_size to respect concentration limits
+- Added max DV01 calculation based on concentration and per-spread limits
+- Ensures positions never exceed 30% of total portfolio DV01
+- Maintains DV01-neutral ratio while respecting limits
+- Prevents excessive concentration in single spreads
+
+## May 2, 2024
+### Fix(risk): Improve concentration limit check for single-spread portfolios
+- Modified check_concentration_limit to properly handle single-spread portfolios
+- Added short-circuit logic when only one spread is active
+- Improved active spread counting with direct position size check
+- Enhanced DV01 calculation with more efficient sum operation
+- Fixed edge case where first trade was being blocked by concentration limits
+- Now allows full DV01 target for first trade while maintaining limits for multiple spreads
+
+## May 2, 2024
+### Fix(backtest): Improve position sizing and concentration limits
+- Modified compute_position_size to properly handle concentration limits
+- Added total portfolio DV01 calculation for sizing
+- Improved max DV01 calculation based on limits
+- Ensures positions respect concentration limits
+- Fixed potential issues with position sizing
+- Maintains DV01-neutral ratios while respecting limits
+
+## May 2, 2024
+### Fix(backtest): Improve position management and risk controls
+- Refactored run_backtest method for better risk management
+- Added proper position limit checks before trades
+- Implemented max drawdown monitoring and position closing
+- Fixed position tracking and PnL calculation
+- Added equity curve tracking
+- Improved error handling and logging
+- Fixed transaction cost calculation
+- Added proper date handling for weekends/holidays
+
+## May 2, 2024
+### Fix(backtest): Correct position sizing and concentration limits
+- Fixed position sizing to use configured limits instead of current portfolio DV01
+- Removed dependency on current portfolio DV01 for max position calculation
+- Fixed concentration limit check to only enforce when there are at least two active spreads
+  - Previously, the check was preventing the first trade since a single spread would have 100% concentration
+  - Now only enforces the 50% concentration limit when there are two or more active spreads
+- Improved concentration calculation to only check spreads with active positions
+- Ensures proper position sizing at strategy start
+- Prevents false concentration warnings with zero positions
+
+## May 2, 2024
+### Fix(backtest): Improve edge case handling
+- Added guard for neutral signal rebalancing to prevent division by zero
+- Added zero standard deviation guard for Sharpe ratio calculation
+- Improved spread-specific Sharpe ratio calculation with edge case handling
+- Enhanced error handling in performance metrics calculation
+- Ensures robust handling of edge cases in backtest
+
+## May 2, 2024
+### Feat(backtest): Improve position tracking and logging
+- Added daily position snapshots to backtest results
+- Enhanced rebalancing skip logging with detailed DV01 deviation info
+- Added proper end-of-day position recording
+- Improved logging verbosity for skipped trades
+- Better tracking of portfolio evolution over time
+
+## 2025-05-01
+### Analysis
+- Conducted comprehensive backtest of yield curve relative value trading strategy
+- Key findings:
+  - Overall negative performance (-$35.5M PnL)
+  - Poor risk-adjusted returns (Sharpe Ratio: -8.69)
+  - High number of trades (7,472) with low win rate (39.77%)
+  - 5s30s strategy performed worse than 2s10s strategy
+- Identified potential areas for improvement:
+  - Review entry/exit signals to improve win rate
+  - Consider reducing trade frequency
+  - Analyze specific periods of large drawdowns
+  - Evaluate position sizing methodology
+
+## [2025-05-01] Backtest Results and Strategy Analysis
+
+### Added
+- Comprehensive backtest results for both 2s10s and 5s30s strategies
+- Detailed performance metrics including PnL, Sharpe ratios, and trade statistics
+- Analysis of strategy performance breakdown
+
+### Changed
+- Updated performance tracking with actual backtest results
+- Modified strategy evaluation metrics based on real data
+
+### Fixed
+- N/A
+
+### Removed
+- N/A
+
+### Notes
+- The 2s10s strategy is performing exceptionally well with a Sharpe ratio of 8.58
+- The 5s30s strategy requires significant optimization due to negative performance
+- Trading costs are a major factor affecting overall profitability
+- Win rate needs improvement through better trade selection criteria
+
+## [2025-05-01] Visualization Updates
+
+### Added
+- Generated comprehensive visualization plots:
+  - Equity curves showing strategy performance over time
+  - Drawdown analysis for risk assessment
+  - Monthly returns heatmap for seasonality analysis
+  - Trade analysis plots for strategy evaluation
+  - Correlation analysis between spreads
+
+### Changed
+- Enhanced visualization code with better error handling
+- Improved plot formatting and readability
+- Updated color schemes for better contrast
+- Enhanced legend placement and readability
+
+### Fixed
+- N/A
+
+### Removed
+- N/A
+
+### Notes
+- All plots successfully generated and saved
+- Visualization provides clear insights into strategy performance
+- Helps identify areas for improvement in both strategies
+- Confirms the strong performance of 2s10s strategy
+- Highlights the need for 5s30s strategy optimization
+
+## 2024-05-02 01:25 EDT
+
+### Model Training Results Analysis
+- Completed comprehensive model evaluation:
+  - Next-day prediction models:
+    - LSTM shows best performance (MSE: 3.84 for 2s10s, 2.40 for 5s30s)
+    - MLP second best performer
+    - Traditional models (RF, XGB, ARIMA) show higher MSE
+  - Direction prediction models:
+    - MLP and LSTM achieve ~56% accuracy
+    - Consistent performance across both spreads
+    - ROC AUC scores indicate reliable predictions
+  - Ternary classification models:
+    - XGB and MLP show best performance
+    - Accuracy around 42-44%
+    - Higher complexity but potentially more useful for trading
+- Technical improvements:
+  - Proper cross-validation implementation
+  - Consistent evaluation metrics
+  - Efficient model training pipeline
+  - Comprehensive results logging
+
+## 2024-03-19
+### Fix(model): Ensure consistent data trimming across all models
+- Moved 6-year data cutoff logic from train() to load_data() method
+- Ensures all models (including ARIMA) use the same data window
+- Improves code maintainability by centralizing data preparation logic
+- Fixed issue where ARIMA models weren't seeing the same data cutoff
+- Added proper logging of data trimming in load_data()
+
+## [2024-03-21] - Spread Support Update
+- Added support for additional spread types (2s5s, 5s10s)
+- Updated SPREADS dictionary in utils.py
+- Modified _get_maturities method in backtest.py
+- Updated config.yaml to include all spread types
+- Set DV01 ratios to be calculated dynamically for all spreads
+
+## 2024-03-21
+### Backtest DataFrame Conversion
+- Modified run_backtest to convert daily PnL and trades to DataFrames before returning
+- Added handling for empty trades list to return empty DataFrame
+- Ensures consistent data structure for downstream processing in save_results
+
+## [2024-05-02]
+### Fixed
+- Signal generator prediction handling
+- Model ensemble voting mechanism
+- Signal generation for all model types (next_day, direction, ternary)
+
+### Added
+- Support for multiple models per prediction type
+- Improved signal aggregation across model types
+- Enhanced logging for signal generation process
+
+### Changed
+- Modified prediction dictionary structure handling
+- Updated signal generation logic for better model integration
+- Improved error handling in signal generation
