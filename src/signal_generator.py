@@ -74,7 +74,7 @@ class EnsembleSignal:
         total_weight = 0.0
         
         for signal in self.signals:
-            weight = self.weights.get(signal.model_name, 1.0)
+            weight = self.weights.get(signal.model_type, 1.0)
             confidence = signal.confidence if self.confidence_scaling else 1.0
             votes[signal.value] += weight * confidence
             total_weight += weight
