@@ -131,20 +131,23 @@ class SignalGenerator:
         self.min_agreement = self.thresholds['ensemble']['min_agreement']
         self.neutral_threshold = self.config['ensemble']['neutral_threshold']
     
-    def process_next_day_signal(self, prediction: float) -> Tuple[int, float]:
+    def process_next_day_signal(self, prediction: float, spread: str) -> Tuple[int, float]:
         """
         Process regression (next_day) model prediction.
         
         Args:
             prediction: Predicted change in spread
+            spread: Name of the spread (e.g., '2s10s', '5s30s')
             
         Returns:
             tuple: (signal direction, confidence score)
                 signal: 1 for steepener, -1 for flattener, 0 for neutral
                 confidence: float between 0 and 1
         """
-        min_change = self.thresholds['next_day']['min_change_bp']
-        neutral_zone = self.thresholds['next_day']['neutral_zone']
+        # Get spread-specific thresholds if they exist, otherwise use defaults
+        spread_thresholds = self.config.get('spreads', {}).get(spread, {})
+        min_change = spread_thresholds.get('min_change_bp', self.thresholds['next_day']['min_change_bp'])
+        neutral_zone = spread_thresholds.get('neutral_zone', self.thresholds['next_day']['neutral_zone'])
         
         if prediction > min_change:
             signal = 1  # steepener
@@ -161,12 +164,13 @@ class SignalGenerator:
             
         return signal, confidence
     
-    def process_direction_signal(self, prediction: int) -> Tuple[int, float]:
+    def process_direction_signal(self, prediction: int, spread: str) -> Tuple[int, float]:
         """
         Process binary classification (direction) model prediction.
         
         Args:
             prediction: Binary prediction (0 for flatten, 1 for steepen)
+            spread: Name of the spread (e.g., '2s10s', '5s30s')
             
         Returns:
             tuple: (signal direction, confidence score)
@@ -190,7 +194,7 @@ class SignalGenerator:
             
         return signal, confidence
     
-    def process_ternary_signal(self, prediction: Union[Dict[str, float], float, int, tuple]) -> Tuple[int, float]:
+    def process_ternary_signal(self, prediction: Union[Dict[str, float], float, int, tuple], spread: str) -> Tuple[int, float]:
         """
         Process ternary classification model prediction.
         
@@ -200,6 +204,7 @@ class SignalGenerator:
                 - Integer class index (0: flatten, 1: neutral, 2: steepen)
                 - Float probability (0-1 range, where >0.5 indicates steepen, <0.5 indicates flatten)
                 - Tuple (in which case the first element is used)
+            spread: Name of the spread (e.g., '2s10s', '5s30s')
             
         Returns:
             Tuple[int, float]: (signal direction, confidence score)
@@ -207,6 +212,10 @@ class SignalGenerator:
                 confidence: float between 0 and 1
         """
         try:
+            # Get spread-specific threshold if it exists, otherwise use default
+            spread_thresholds = self.config.get('spreads', {}).get(spread, {})
+            probability_threshold = spread_thresholds.get('probability', self.thresholds['ternary']['probability'])
+            
             # Handle tuple input by taking the first element
             if isinstance(prediction, tuple):
                 prediction = prediction[0]
@@ -223,7 +232,7 @@ class SignalGenerator:
                 max_class = max(prediction.items(), key=lambda x: x[1])[0]
                 max_prob = prediction[max_class]
                 
-                if max_prob < self.thresholds['ternary']['probability']:
+                if max_prob < probability_threshold:
                     logging.debug(f"Low probability {max_prob} for class {max_class}, treating as neutral")
                     return 0, max_prob
 
@@ -278,12 +287,13 @@ class SignalGenerator:
             logging.error(f"Error processing ternary prediction {prediction}: {str(e)}")
             return 0, 0.0
     
-    def aggregate_signals(self, predictions: Dict[str, Dict[str, Dict[str, float]]]) -> Dict[str, Tuple[int, float]]:
+    def aggregate_signals(self, predictions: Dict[str, Dict[str, Dict[pd.Timestamp, float]]], spread: str) -> Dict[pd.Timestamp, Tuple[int, float]]:
         """
         Aggregate signals from multiple models into a final trading decision.
         
         Args:
             predictions: Dictionary containing predictions from each model type and model
+            spread: Name of the spread (e.g., '2s10s', '5s30s')
             
         Returns:
             dict: Date-indexed results with (final signal, confidence score)
@@ -294,12 +304,17 @@ class SignalGenerator:
             # Get all unique dates
             dates = self._get_all_dates(predictions)
             
+            # Get spread-specific ensemble parameters if they exist
+            spread_config = self.config.get('spreads', {}).get(spread, {})
+            min_agreement = spread_config.get('min_agreement', self.min_agreement)
+            neutral_threshold = spread_config.get('neutral_threshold', self.neutral_threshold)
+            
             for date in dates:
                 ensemble = EnsembleSignal(
                     weights=self.ensemble_weights,
-                    min_agreement=self.min_agreement,
+                    min_agreement=min_agreement,
                     confidence_scaling=self.confidence_scaling,
-                    neutral_threshold=self.neutral_threshold
+                    neutral_threshold=neutral_threshold
                 )
                 
                 # Process each prediction type
@@ -315,11 +330,11 @@ class SignalGenerator:
                         pred = pred_dict[date]
                         try:
                             if pred_type == 'next_day':
-                                signal, confidence = self.process_next_day_signal(pred)
+                                signal, confidence = self.process_next_day_signal(pred, spread)
                             elif pred_type == 'direction':
-                                signal, confidence = self.process_direction_signal(pred)
+                                signal, confidence = self.process_direction_signal(pred, spread)
                             else:  # ternary
-                                signal, confidence = self.process_ternary_signal(pred)
+                                signal, confidence = self.process_ternary_signal(pred, spread)
                                 
                             # Create Signal object
                             signal_obj = Signal(
@@ -346,92 +361,13 @@ class SignalGenerator:
         
         return results
     
-    def _get_all_dates(self, predictions: Dict[str, Dict[str, Dict[str, float]]]) -> List[str]:
+    def _get_all_dates(self, predictions: Dict[str, Dict[str, Dict[pd.Timestamp, float]]]) -> List[pd.Timestamp]:
         """Get all unique dates from predictions."""
         dates = set()
         for model_preds in predictions.values():
             for pred_dict in model_preds.values():
                 dates.update(pred_dict.keys())
         return sorted(list(dates))
-    
-    def generate_signals(self, spread: str, date: pd.Timestamp,
-                     predictions: Dict[str, Dict[str, Dict[str, float]]]) -> Dict[str, Any]:
-        """
-        Generate trading signals by combining model predictions.
-        
-        Args:
-            spread: Name of the spread
-            date: Current date
-            predictions: Dictionary containing predictions from each model type and model
-            
-        Returns:
-            dict: Dictionary containing signal type and confidence
-        """
-        try:
-            # Get thresholds from config
-            next_day_threshold = self.config['signal_thresholds']['next_day']['min_change_bp']
-            direction_threshold = self.config['signal_thresholds']['direction']['probability']
-            ternary_threshold = self.config['signal_thresholds']['ternary']['probability']
-            neutral_zone = self.config['signal_thresholds']['next_day']['neutral_zone']
-            min_agreement = self.config['signal_thresholds']['ensemble']['min_agreement']
-            
-            # Initialize vote counters
-            steepener_votes = 0
-            flattener_votes = 0
-            
-            # Process next_day predictions
-            if 'next_day' in predictions and predictions['next_day']:
-                for model, preds in predictions['next_day'].items():
-                    for date_str, pred in preds.items():
-                        if pred > next_day_threshold:
-                            steepener_votes += 1
-                        elif pred < -next_day_threshold:
-                            flattener_votes += 1
-            
-            # Process direction predictions
-            if 'direction' in predictions and predictions['direction']:
-                for model, preds in predictions['direction'].items():
-                    for date_str, pred in preds.items():
-                        if pred == 1:
-                            steepener_votes += 1
-                        elif pred == 0:
-                            flattener_votes += 1
-            
-            # Process ternary predictions
-            if 'ternary' in predictions and predictions['ternary']:
-                for model, preds in predictions['ternary'].items():
-                    for date_str, pred in preds.items():
-                        if pred == 2:  # Steepener
-                            steepener_votes += 1
-                        elif pred == 0:  # Flattener
-                            flattener_votes += 1
-            
-            # Determine final signal and confidence
-            if max(steepener_votes, flattener_votes) >= min_agreement:
-                if steepener_votes > flattener_votes:
-                    signal_type = SignalType.STEEPER
-                    confidence = steepener_votes / 3.0  # Normalize to [0,1]
-                else:
-                    signal_type = SignalType.FLATTENER
-                    confidence = flattener_votes / 3.0  # Normalize to [0,1]
-            else:
-                signal_type = SignalType.NEUTRAL
-                confidence = 0.0
-            
-            # Return simplified signal format
-            return {
-                'date': date,
-                'signal': signal_type.value,  # Store enum value for JSON serialization
-                'confidence': float(confidence)
-            }
-            
-        except Exception as e:
-            logging.error(f"Error generating signals: {str(e)}")
-            return {
-                'date': date,
-                'signal': SignalType.NEUTRAL.value,
-                'confidence': 0.0
-            }  # Safe default
 
 def load_predictions(prediction_dir: Path) -> dict:
     """Load predictions from model-specific CSV files in directory structure."""
@@ -459,16 +395,11 @@ def load_predictions(prediction_dir: Path) -> dict:
                         if spread not in predictions[pred_type]:
                             predictions[pred_type][spread] = {}
                             
-                        # Convert predictions to the expected format
-                        if pred_type == 'next_day':
-                            # Next day predictions are already in the right format (float)
-                            pred_dict = dict(zip(df['date'], df['prediction']))
-                        elif pred_type == 'direction':
-                            # Direction predictions are binary (0 or 1), keep as is
-                            pred_dict = dict(zip(df['date'], df['prediction'].astype(int)))
-                        else:  # ternary
-                            # For ternary, predictions should already be class indices (0: flatten, 1: neutral, 2: steepen)
-                            pred_dict = dict(zip(df['date'], df['prediction'].astype(int)))
+                        # Convert dates to pd.Timestamp and create prediction dictionary
+                        pred_dict = {
+                            pd.Timestamp(date): pred
+                            for date, pred in zip(df['date'], df['prediction'])
+                        }
                             
                         predictions[pred_type][spread][model_name] = pred_dict
                         logging.info(f"Loaded {len(pred_dict)} predictions for {spread} {pred_type} - {model_name}")
@@ -498,86 +429,63 @@ def main():
     """Main execution function."""
     logging.basicConfig(level=logging.INFO)
     
-    # Get absolute path to project root
-    root_dir = Path(__file__).parent.parent
-    
-    # Initialize signal generator with absolute path to config
-    generator = SignalGenerator(root_dir / 'config.yaml')
-    
-    # Process both spreads
-    spreads = ['2s10s', '5s30s']
-    for spread in spreads:
-        logging.info(f"Processing signals for {spread} spread")
+    try:
+        # Get absolute path to project root
+        root_dir = Path(__file__).parent.parent
         
-        # Load predictions using absolute path
-        predictions = load_predictions(root_dir / 'results' / 'model_training')
-        if not predictions:
-            logging.warning(f"No predictions found for {spread}")
-            continue
+        # Initialize signal generator with absolute path to config
+        generator = SignalGenerator(root_dir / 'config.yaml')
         
-        # Generate signals for each date
-        signals = []
-        
-        # Get all unique dates from all prediction types and models
-        all_dates = set()
-        for pred_type in predictions:
-            if spread in predictions[pred_type]:
-                for model in predictions[pred_type][spread]:
-                    all_dates.update(predictions[pred_type][spread][model].keys())
-        
-        # Sort dates
-        dates = sorted(list(all_dates))
-        logging.info(f"Found {len(dates)} unique dates for {spread}")
-        
-        for date_str in dates:
-            try:
-                date = pd.to_datetime(date_str)
-                
-                # Get predictions for this date from all models
-                date_predictions = {}
-                for pred_type in predictions:
-                    if spread in predictions[pred_type]:
-                        date_predictions[pred_type] = {}
-                        for model in predictions[pred_type][spread]:
-                            if date_str in predictions[pred_type][spread][model]:
-                                date_predictions[pred_type][model] = {
-                                    date_str: predictions[pred_type][spread][model][date_str]
-                                }
-                
-                # Check if we have any valid predictions
-                has_predictions = False
-                for pred_type in date_predictions:
-                    if date_predictions[pred_type]:  # Check if any models have predictions
-                        has_predictions = True
-                        break
-                
-                if not has_predictions:
-                    logging.warning(f"No valid predictions found for {date_str}")
-                    continue
-                    
-                signal = generator.generate_signals(spread, date, date_predictions)
-                signals.append(signal)
-                
-            except Exception as e:
-                logging.error(f"Error processing date {date_str}: {str(e)}")
+        # Process both spreads
+        spreads = ['2s10s', '5s30s']
+        for spread in spreads:
+            logging.info(f"Processing signals for {spread} spread")
+            
+            # Load predictions using absolute path
+            predictions = load_predictions(root_dir / 'results' / 'model_training')
+            if not predictions:
+                logging.warning(f"No predictions found for {spread}")
                 continue
-        
-        # Save signals
-        if signals:
-            save_signals(signals, spread, root_dir / 'results' / 'signals')
-            logging.info(f"Generated {len(signals)} signals for {spread}")
             
-            # Print summary
-            steepener_count = sum(1 for s in signals if s['signal'] == 1)
-            flattener_count = sum(1 for s in signals if s['signal'] == -1)
-            neutral_count = sum(1 for s in signals if s['signal'] == 0)
+            # Get predictions for this spread
+            spread_predictions = {
+                pred_type: preds.get(spread, {})
+                for pred_type, preds in predictions.items()
+            }
             
-            logging.info(f"Signal distribution for {spread}:")
-            logging.info(f"  Steepener signals: {steepener_count}")
-            logging.info(f"  Flattener signals: {flattener_count}")
-            logging.info(f"  Neutral signals: {neutral_count}")
-        else:
-            logging.warning(f"No signals generated for {spread}")
+            # Generate signals using ensemble approach
+            signals_dict = generator.aggregate_signals(spread_predictions, spread)
+            
+            # Convert to list of dictionaries for saving
+            signals = [
+                {
+                    'date': date,
+                    'signal': signal,
+                    'confidence': confidence
+                }
+                for date, (signal, confidence) in signals_dict.items()
+            ]
+            
+            # Save signals
+            if signals:
+                save_signals(signals, spread, root_dir / 'results' / 'signals')
+                logging.info(f"Generated {len(signals)} signals for {spread}")
+                
+                # Print summary
+                steepener_count = sum(1 for s in signals if s['signal'] == 1)
+                flattener_count = sum(1 for s in signals if s['signal'] == -1)
+                neutral_count = sum(1 for s in signals if s['signal'] == 0)
+                
+                logging.info(f"Signal distribution for {spread}:")
+                logging.info(f"  Steepener signals: {steepener_count}")
+                logging.info(f"  Flattener signals: {flattener_count}")
+                logging.info(f"  Neutral signals: {neutral_count}")
+            else:
+                logging.warning(f"No signals generated for {spread}")
+                
+    except Exception as e:
+        logging.error(f"Error in main: {str(e)}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main() 
