@@ -149,30 +149,10 @@ class BacktestVisualizer:
             )
             
             # Create heatmap
-            sns.heatmap(pivot, cmap='RdYlGn', center=0, ax=ax, annot=True, fmt='.0f')
+            sns.heatmap(pivot, cmap='RdYlGn', center=0, ax=ax, annot=False)
             ax.set_title(title)
             ax.set_xlabel('Month')
             ax.set_ylabel('Year')
-            
-            # Find best and worst months
-            best_month = pivot.max().max()
-            worst_month = pivot.min().min()
-            
-            # Get coordinates of best and worst months
-            best_coords = np.where(pivot == best_month)
-            worst_coords = np.where(pivot == worst_month)
-            
-            # Annotate best month
-            if best_month > 0:
-                ax.text(best_coords[1][0] + 0.5, best_coords[0][0] + 0.5, 
-                       f'Best: {best_month:.0f}', 
-                       ha='center', va='center', color='green', fontweight='bold')
-            
-            # Annotate worst month
-            if worst_month < 0:
-                ax.text(worst_coords[1][0] + 0.5, worst_coords[0][0] + 0.5, 
-                       f'Worst: {worst_month:.0f}', 
-                       ha='center', va='center', color='red', fontweight='bold')
         
         # Create heatmaps
         create_heatmap(monthly_2s10s, ax1, '2s10s Monthly Returns')
