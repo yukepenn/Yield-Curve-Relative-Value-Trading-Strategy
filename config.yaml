@@ -2,8 +2,10 @@
 dv01:
   target: 100  # Target DV01 per trade in dollars
   ratios:
-    2s10s: 1.9  # Fixed ratio for 2s10s (can be overridden by dynamic calculation)
-    5s30s: 3.5  # Fixed ratio for 5s30s
+    # Use dynamic calculation for 2s10s (null or omit to compute on the fly)
+    2s10s: null
+    # Keep static ratio for 5s30s
+    5s30s: null
 
 # Transaction Costs
 transaction_costs:
@@ -20,7 +22,7 @@ signal_thresholds:
   ternary:
     probability: 0.65  # Minimum probability for ternary classification
   ensemble:
-    min_agreement: 3  # Minimum number of models that must agree
+    min_agreement: 2  # Minimum number of models that must agree
 
 # Position Management
 position:
@@ -36,7 +38,7 @@ risk:
   max_drawdown: 0.10  # Maximum allowed drawdown
   var_confidence: 0.95  # VaR confidence level
   position_limits:
-    max_concentration: 0.3  # Maximum allocation to single spread
+    max_concentration: 0.5  # Maximum allocation to single spread
     correlation_threshold: 0.7  # Maximum allowed correlation between spreads
 
 # Model Ensemble

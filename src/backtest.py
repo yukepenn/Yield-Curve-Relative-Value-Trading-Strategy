@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timedelta
 import json
 import sys
+import copy
 
 # Add the project root to the Python path
 project_root = str(Path(__file__).parent.parent)
@@ -68,6 +69,11 @@ class BacktestEngine:
         # Set up paths
         self.results_dir = Path(self.config['paths']['results']) / 'backtest'
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Add new state variables for risk monitoring
+        self.initial_portfolio_value = 1_000_000  # Starting with $1M
+        self.equity_curve = [self.initial_portfolio_value]
+        self.max_drawdown_limit = self.config['risk']['max_drawdown'] * self.initial_portfolio_value
     
     def load_signals(self) -> Dict[str, pd.DataFrame]:
         """
@@ -132,10 +138,20 @@ class BacktestEngine:
         ratio = self.dv01_calculator.calculate_dv01_ratio(
             spread, short_maturity, long_maturity, short_yield, long_yield)
         
-        # Base notional for long leg to achieve target DV01
+        # Calculate maximum allowed DV01 based on configuration limits
+        max_concentration = self.config['risk']['position_limits']['max_concentration']
+        max_dv01 = min(
+            self.max_dv01_per_spread,  # Per-spread limit
+            self.max_portfolio_dv01 * max_concentration  # Concentration limit
+        )
+        
+        # Calculate base notional for long leg to achieve target DV01, capped by max_dv01
         long_duration = self.dv01_calculator.duration_calculator.calculate_modified_duration(
             long_maturity, long_yield)
-        base_notional = abs(self.dv01_target / (long_duration * 0.0001))
+        base_notional = min(
+            abs(self.dv01_target / (long_duration * 0.0001)),
+            abs(max_dv01 / (long_duration * 0.0001))
+        )
         
         # Calculate notionals for both legs
         if signal == SignalType.STEEPER:
@@ -276,16 +292,7 @@ class BacktestEngine:
     
     def run_backtest(self, start_date: Union[str, pd.Timestamp], 
                     end_date: Union[str, pd.Timestamp]) -> Dict:
-        """
-        Run backtest simulation.
-        
-        Args:
-            start_date: Start date for backtest
-            end_date: End date for backtest
-            
-        Returns:
-            dict: Backtest results
-        """
+        """Run backtest simulation."""
         # Load signals and data
         signals = self.load_signals()
         if not signals:
@@ -297,7 +304,7 @@ class BacktestEngine:
         # Initialize results
         results = {
             'daily_pnl': [],
-            'positions': [],
+            'positions': [],  # Will store daily position snapshots
             'trades': []
         }
         
@@ -305,31 +312,50 @@ class BacktestEngine:
         current_date = pd.to_datetime(start_date)
         end_date = pd.to_datetime(end_date)
         
+        # Initialize daily tracking variables
+        daily_pnl = 0.0
+        
         while current_date <= end_date:
+            # Reset daily PnL
+            daily_pnl = 0.0
+            
             # Get current yields safely
             current_yields = self.safe_yield_lookup(current_date, yield_data)
             if current_yields is None:
                 logging.warning(f"No yield data available for or before {current_date}, skipping.")
                 current_date += timedelta(days=1)
                 continue
-                
+            
             # Process each spread
             for spread in SPREADS.keys():
                 if current_date not in signals[spread].index:
                     continue
-                    
+                
                 # Get signal
                 signal_data = signals[spread].loc[current_date].to_dict()
                 signal, confidence = self.process_signal(signal_data)
                 
-                # Calculate new position
+                # Calculate potential new position
                 new_position = self.compute_position_size(spread, signal, current_yields)
                 
-                # Check position limits
-                if not self.risk_calculator.check_position_limits({spread: new_position}):
-                    logging.warning(f"Position limits exceeded for {spread} on {current_date}")
-                    new_position = {'short_term': {'size': 0, 'yield': 0}, 
-                                  'long_term': {'size': 0, 'yield': 0}}
+                # Check if rebalancing is needed based on DV01 deviation
+                current_dv01 = self.risk_calculator.calculate_total_dv01({spread: self.positions[spread]})
+                target_dv01 = self.dv01_target if signal != SignalType.NEUTRAL else 0
+                
+                # Only rebalance if DV01 deviation exceeds threshold or we're closing position (signal is NEUTRAL)
+                if signal == SignalType.NEUTRAL or (target_dv01 > 0 and abs(current_dv01 - target_dv01) / target_dv01 >= self.rebalancing_threshold):
+                    # Create a test portfolio with the new position
+                    test_portfolio = self.positions.copy()
+                    test_portfolio[spread] = new_position
+                    
+                    # Check all position limits including concentration and correlation
+                    if not self.risk_calculator.check_position_limits(test_portfolio):
+                        logging.warning(f"Position limits exceeded for {spread} on {current_date}")
+                        new_position = self.positions[spread]  # Keep current position instead of zeroing
+                else:
+                    # Skip rebalancing, maintain current position
+                    logging.info(f"Skipping rebalance for {spread} on {current_date} - DV01 deviation {abs(current_dv01 - target_dv01) / target_dv01:.2%} within threshold {self.rebalancing_threshold:.2%}")
+                    new_position = self.positions[spread]
                 
                 # Calculate P&L and carry
                 if current_date > pd.to_datetime(start_date):
@@ -338,6 +364,9 @@ class BacktestEngine:
                     if prev_yields is not None:
                         pnl = self.calculate_pnl(spread, self.positions[spread], prev_yields, current_yields)
                         carry = self.calculate_carry(spread, self.positions[spread])
+                        
+                        # Update PnL history for correlation tracking
+                        self.risk_calculator.update_pnl_history(spread, pnl + carry)
                     else:
                         logging.warning(f"No yield data available for or before {prev_date}, skipping P&L calculation.")
                         pnl = 0.0
@@ -351,6 +380,9 @@ class BacktestEngine:
                     cost = self.calculate_transaction_cost(spread, self.positions[spread], new_position)
                 else:
                     cost = 0.0
+                
+                # Update daily PnL
+                daily_pnl += pnl + carry - cost
                 
                 # Update position and record results
                 old_position = self.positions[spread]
@@ -378,7 +410,36 @@ class BacktestEngine:
                     }
                     results['trades'].append(trade)
             
+            # Update equity curve and check drawdown limit
+            current_equity = self.equity_curve[-1] + daily_pnl
+            self.equity_curve.append(current_equity)
+            
+            # Calculate current drawdown
+            peak = max(self.equity_curve)
+            drawdown = peak - current_equity
+            
+            # Check if max drawdown limit is breached
+            if drawdown > self.max_drawdown_limit:
+                logging.warning(f"Max drawdown limit breached on {current_date}. Closing all positions.")
+                # Close all positions
+                for spread in SPREADS.keys():
+                    self.positions[spread] = {
+                        'short_term': {'size': 0, 'yield': 0},
+                        'long_term': {'size': 0, 'yield': 0}
+                    }
+            
+            # Record end-of-day position snapshot
+            results['positions'].append({
+                'date': current_date,
+                'positions': copy.deepcopy(self.positions)
+            })
+            
             current_date += timedelta(days=1)
+        
+        # Add equity curve to results
+        results['equity_curve'] = pd.Series(self.equity_curve, index=[pd.to_datetime(start_date)] + [
+            pd.to_datetime(start_date) + timedelta(days=i) for i in range(len(self.equity_curve)-1)
+        ])
         
         # Convert results to DataFrames
         results['daily_pnl'] = pd.DataFrame(results['daily_pnl'])
@@ -440,9 +501,13 @@ class BacktestEngine:
         # Annualization factor (252 trading days)
         ann_factor = np.sqrt(252)
         
+        # Calculate Sharpe ratio with zero standard deviation guard
+        std = daily_total.std()
+        sharpe = float(ann_factor * daily_total.mean() / std) if std > 0 else 0.0
+        
         summary = {
             'total_pnl': float(cumulative_pnl.iloc[-1]),
-            'sharpe_ratio': float(ann_factor * daily_total.mean() / daily_total.std()),
+            'sharpe_ratio': sharpe,
             'max_drawdown': float(self._calculate_max_drawdown(cumulative_pnl)),
             'win_rate': float((daily_total > 0).mean()),
             'avg_daily_pnl': float(daily_total.mean()),
@@ -458,7 +523,8 @@ class BacktestEngine:
             spread_trades = trades_df[trades_df['spread'] == spread]
             
             summary[f'{spread}_total_pnl'] = float(spread_daily.sum())
-            summary[f'{spread}_sharpe'] = float(ann_factor * spread_daily.mean() / spread_daily.std())
+            spread_std = spread_daily.std()
+            summary[f'{spread}_sharpe'] = float(ann_factor * spread_daily.mean() / spread_std) if spread_std > 0 else 0.0
             summary[f'{spread}_trades'] = len(spread_trades)
         
         return summary
