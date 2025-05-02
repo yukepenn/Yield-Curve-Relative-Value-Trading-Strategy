@@ -1383,3 +1383,24 @@ git commit -m "Refactor(risk): improve risk management with utility classes"
 - Improved results organization
 - More consistent data handling
 - Enhanced error tracking
+
+## [Unreleased]
+
+### Fixed
+- Fixed "Per-column arrays must each be 1-dimensional" error in model training
+- Modified `save_results` method to use `ravel()` on predictions and targets
+- Successfully trained LSTM model with proper data handling
+- Improved metric handling for multi-class classification
+- Added proper macro-averaging for F1 score in ternary classification
+- Implemented one-vs-one ROC-AUC calculation for multi-class tasks
+- Fixed "Target is multiclass but average='binary'" errors in model training
+
+## [Unreleased]
+
+### Added
+- Backtest visualization plots in results/backtest directory
+  - Equity curves plot
+  - Drawdown analysis plot
+  - Monthly returns heatmap
+  - Trade analysis plots
+  - Correlation analysis plot
