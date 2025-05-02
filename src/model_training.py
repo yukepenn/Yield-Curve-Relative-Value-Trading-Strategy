@@ -27,6 +27,7 @@ import pynvml
 import traceback
 import warnings
 import random
+from functools import partial
 
 # Set random seeds for reproducibility
 RANDOM_SEED = 42
@@ -780,23 +781,24 @@ class ModelTrainer:
                 if hasattr(model, 'feature_importances_'):
                     feature_importance.append(model.feature_importances_)
             
-            # Aggregate results
+            # safely aggregate mean/std over non-None
+            mean_m, std_m = {}, {}
+            for name in metric_funcs:
+                vals = [fold[name] for fold in fold_metrics if fold[name] is not None]
+                mean_m[name] = float(np.mean(vals)) if vals else None
+                std_m[name]  = float(np.std(vals))  if vals else None
+            
             results = {
-                'predictions': np.array(all_predictions),
-                'targets': np.array(all_targets),
-                'fold_metrics': fold_metrics,
-                'mean_metrics': {name: np.mean([fold[name] for fold in fold_metrics]) 
-                               for name in metric_funcs.keys()},
-                'std_metrics': {name: np.std([fold[name] for fold in fold_metrics]) 
-                              for name in metric_funcs.keys()}
+                'predictions':   np.array(all_predictions),
+                'targets':       np.array(all_targets),
+                'fold_metrics':  fold_metrics,
+                **mean_m,
+                'std_metrics':   std_m
             }
             
             # Add feature importance if available
             if feature_importance:
                 results['feature_importance'] = np.mean(feature_importance, axis=0)
-            
-            # Move mean metrics to top level for compatibility
-            results.update(results.pop('mean_metrics'))
             
             return results
             
@@ -812,143 +814,106 @@ class ModelTrainer:
         n_splits: int = 5
     ) -> Dict:
         try:
-            # Initialize results storage
             all_predictions = []
-            all_targets = []
-            fold_metrics = []
-            
-            # Create time series splits
-            tscv = TimeSeriesSplit(n_splits=n_splits)
+            all_targets     = []
+            fold_metrics    = []
+
+            tscv   = TimeSeriesSplit(n_splits=n_splits)
             splits = list(tscv.split(self.features))
-            
-            # Track GPU memory if available
-            if torch.cuda.is_available():
-                initial_memory = torch.cuda.memory_allocated()
-            
-            # Iterate through folds
+
             for fold, (train_idx, val_idx) in enumerate(splits, 1):
                 self.logger.info(f"Training fold {fold}/{n_splits}")
-                
-                # Create new model instance for this fold
-                model = model_factory()
-                model.to(self.device)
-                
-                # Prepare data for this fold
+
+                # new model & data
+                model = model_factory().to(self.device)
                 train_loader, val_loader = data_prep(train_idx, val_idx)
-                
-                # Set up training
+
                 optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
                 criterion = nn.MSELoss() if self.prediction_type == 'next_day' else nn.CrossEntropyLoss()
-                
-                # Training loop
-                best_val_loss = float('inf')
+
+                # early-stop training...
+                best_state, best_val = None, float('inf')
                 patience_counter = 0
-                best_state = None
-                
                 for epoch in range(self.epochs):
                     train_loss = self._train_epoch(model, train_loader, optimizer, criterion)
-                    val_loss = self._validate(model, val_loader, criterion)
-                    
-                    if val_loss < best_val_loss:
-                        best_val_loss = val_loss
-                        patience_counter = 0
-                        best_state = model.state_dict()
+                    val_loss   = self._validate(model, val_loader, criterion)
+                    if val_loss < best_val:
+                        best_val, best_state, patience_counter = val_loss, model.state_dict(), 0
                     else:
                         patience_counter += 1
-                        if patience_counter >= 5:  # Early stopping
+                        if patience_counter >= 5:
                             break
-                
-                # Load best model state
                 model.load_state_dict(best_state)
-                
-                # Get predictions
+
+                # collect preds, targets, probas
+                fold_preds  = []
+                fold_targs  = []
+                fold_probas = []
+
                 model.eval()
-                fold_predictions = []
-                fold_targets = []
-                
                 with torch.no_grad():
-                    for batch_x, batch_y in val_loader:
-                        batch_x = batch_x.to(self.device)
-                        outputs = model(batch_x)
-                        
+                    for X, y in val_loader:
+                        X = X.to(self.device)
+                        out = model(X)
+
                         if self.prediction_type == 'next_day':
-                            # Inverse transform predictions for regression
+                            # regression
                             preds = self.target_scaler.inverse_transform(
-                                outputs.cpu().numpy().reshape(-1, 1)).flatten()
+                                out.cpu().numpy().reshape(-1,1)
+                            ).flatten()
                         else:
-                            # Get class predictions for classification
-                            preds = outputs.argmax(dim=1).cpu().numpy()
-                        
-                        fold_predictions.extend(preds)
-                        fold_targets.extend(batch_y.cpu().numpy())
-                
-                # Calculate metrics for this fold
-                fold_result = {}
-                for metric_name, metric_func in metric_funcs.items():
+                            # classification
+                            probs = torch.softmax(out, dim=1).cpu().numpy()
+                            preds = probs.argmax(axis=1)
+                            fold_probas.extend(probs)
+
+                        fold_preds.extend(preds)
+                        fold_targs.extend(y.cpu().numpy())
+
+                # compute fold metrics
+                fm = {}
+                for name, fn in metric_funcs.items():
                     try:
-                        if metric_name == 'roc_auc' and self.prediction_type != 'next_day':
-                            # Get probabilities for ROC-AUC
-                            probas = torch.softmax(outputs, dim=1).cpu().numpy()
+                        if name == 'roc_auc' and self.prediction_type != 'next_day':
                             if self.prediction_type == 'ternary':
-                                score = roc_auc_score(fold_targets, probas, multi_class='ovo')
+                                score = roc_auc_score(fold_targs, fold_probas, multi_class='ovo')
                             else:
-                                score = roc_auc_score(fold_targets, probas[:, 1])
+                                score = roc_auc_score(fold_targs, [p[1] for p in fold_probas])
                         else:
-                            score = metric_func(fold_targets, fold_predictions)
-                        fold_result[metric_name] = score
+                            score = fn(fold_targs, fold_preds)
+                        fm[name] = score
                     except Exception as e:
-                        self.logger.error(f"Error calculating {metric_name}: {str(e)}")
-                        fold_result[metric_name] = None
-                
-                fold_metrics.append(fold_result)
-                
-                # Store predictions and targets
-                all_predictions.extend(fold_predictions)
-                all_targets.extend(fold_targets)
-                
-                # Clean up GPU memory
+                        self.logger.error(f"Error calculating {name} on fold {fold}: {e}")
+                        fm[name] = None
+
+                fold_metrics.append(fm)
+                all_predictions.extend(fold_preds)
+                all_targets.extend(fold_targs)
+
+                # free GPU
                 if torch.cuda.is_available():
                     model.cpu()
                     torch.cuda.empty_cache()
-            
-            # Aggregate results
-            results = {
+
+            # safely aggregate mean/std over non-None
+            mean_m, std_m = {}, {}
+            for name in metric_funcs:
+                vals = [fm[name] for fm in fold_metrics if fm[name] is not None]
+                mean_m[name] = float(np.mean(vals)) if vals else None
+                std_m[name]  = float(np.std(vals))  if vals else None
+
+            return {
                 'predictions': np.array(all_predictions),
-                'targets': np.array(all_targets),
+                'targets':     np.array(all_targets),
                 'fold_metrics': fold_metrics,
-                'mean_metrics': {name: np.mean([fold[name] for fold in fold_metrics]) 
-                               for name in metric_funcs.keys()},
-                'std_metrics': {name: np.std([fold[name] for fold in fold_metrics]) 
-                              for name in metric_funcs.keys()}
+                **mean_m,
+                'std_metrics': std_m
             }
-            
-            # Move mean metrics to top level for compatibility
-            results.update(results.pop('mean_metrics'))
-            
-            return results
-            
+
         except Exception as e:
-            self.logger.error(f"Error in PyTorch walk-forward validation: {str(e)}\n{traceback.format_exc()}")
+            self.logger.error(f"Error in PyTorch walk-forward validation: {e}\n{traceback.format_exc()}")
             return None
 
-    def train_lstm(self) -> Dict:
-        """Train LSTM model using PyTorch walk-forward validation."""
-        def model_factory():
-            return self._create_lstm_model()
-            
-        def data_prep(train_idx, val_idx):
-            return self._prepare_lstm_data(self.features, self.target, train_idx, val_idx)
-            
-        metric_funcs = {
-            'mse': mean_squared_error,
-            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
-            'f1': f1_score if self.prediction_type != 'next_day' else None,
-            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
-        }
-        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
-        
-        return self._torch_walk_forward(model_factory, data_prep, metric_funcs)
-    
     def train_mlp(self) -> Dict:
         """Train MLP model using PyTorch walk-forward validation."""
         def model_factory():
@@ -957,13 +922,43 @@ class ModelTrainer:
         def data_prep(train_idx, val_idx):
             return self._prepare_mlp_data(self.features, self.target, train_idx, val_idx)
             
-        metric_funcs = {
-            'mse': mean_squared_error,
-            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
-            'f1': f1_score if self.prediction_type != 'next_day' else None,
-            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
-        }
-        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
+        # build metric dict
+        metric_funcs: Dict[str, Callable] = {}
+        if self.prediction_type == 'next_day':
+            metric_funcs['mse'] = mean_squared_error
+        else:
+            metric_funcs['accuracy'] = accuracy_score
+            if self.prediction_type == 'ternary':
+                # macro-averaged F1, OVO ROC-AUC
+                metric_funcs['f1']      = partial(f1_score, average='macro')
+                metric_funcs['roc_auc'] = partial(roc_auc_score, multi_class='ovo')
+            else:  # binary direction
+                metric_funcs['f1']      = f1_score
+                metric_funcs['roc_auc'] = roc_auc_score
+        
+        return self._torch_walk_forward(model_factory, data_prep, metric_funcs)
+    
+    def train_lstm(self) -> Dict:
+        """Train LSTM model using PyTorch walk-forward validation."""
+        def model_factory():
+            return self._create_lstm_model()
+            
+        def data_prep(train_idx, val_idx):
+            return self._prepare_lstm_data(self.features, self.target, train_idx, val_idx)
+            
+        # build metric dict
+        metric_funcs: Dict[str, Callable] = {}
+        if self.prediction_type == 'next_day':
+            metric_funcs['mse'] = mean_squared_error
+        else:
+            metric_funcs['accuracy'] = accuracy_score
+            if self.prediction_type == 'ternary':
+                # macro-averaged F1, OVO ROC-AUC
+                metric_funcs['f1']      = partial(f1_score, average='macro')
+                metric_funcs['roc_auc'] = partial(roc_auc_score, multi_class='ovo')
+            else:  # binary direction
+                metric_funcs['f1']      = f1_score
+                metric_funcs['roc_auc'] = roc_auc_score
         
         return self._torch_walk_forward(model_factory, data_prep, metric_funcs)
     
@@ -1034,13 +1029,19 @@ class ModelTrainer:
             
             return X_train, y_train, X_val, y_val
             
-        metric_funcs = {
-            'mse': mean_squared_error,
-            'accuracy': accuracy_score if self.prediction_type != 'next_day' else None,
-            'f1': f1_score if self.prediction_type != 'next_day' else None,
-            'roc_auc': roc_auc_score if self.prediction_type != 'next_day' else None
-        }
-        metric_funcs = {k: v for k, v in metric_funcs.items() if v is not None}
+        # build metric dict
+        metric_funcs: Dict[str, Callable] = {}
+        if self.prediction_type == 'next_day':
+            metric_funcs['mse'] = mean_squared_error
+        else:
+            metric_funcs['accuracy'] = accuracy_score
+            if self.prediction_type == 'ternary':
+                # macro-averaged F1, OVO ROC-AUC
+                metric_funcs['f1']      = partial(f1_score, average='macro')
+                metric_funcs['roc_auc'] = partial(roc_auc_score, multi_class='ovo')
+            else:  # binary direction
+                metric_funcs['f1']      = f1_score
+                metric_funcs['roc_auc'] = roc_auc_score
         
         return self._sklearn_walk_forward(model_factory, data_prep, metric_funcs, n_splits)
 
@@ -1060,8 +1061,12 @@ class ModelTrainer:
             # Get actual values using either 'targets' or 'actuals' key
             actuals = results.get('targets', results.get('actuals'))
             
+            # Flatten predictions and targets
+            preds = np.array(results['predictions']).ravel()
+            actuals = np.array(actuals).ravel()
+            
             predictions_df = pd.DataFrame({
-                'prediction': results['predictions'],
+                'prediction': preds,
                 'actual': actuals
             })
             
@@ -1596,13 +1601,22 @@ class ModelTrainer:
         
         # Define prediction types and their corresponding models
         prediction_models = {
-            'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],  
-            'direction': ['mlp', 'lstm', 'xgb', 'rf'],
-            'ternary': ['mlp', 'lstm', 'xgb', 'rf']
+            'ternary': ['xgb', 'rf'],
         }
         
         # Define spreads to train
-        spreads = ['2s10s', '5s30s']
+        spreads = ['2s10s']
+        
+        # Define spreads to train
+        #spreads = ['2s10s', '5s30s']
+        
+        # Define prediction types and their corresponding models
+        #prediction_models = {
+        #    'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],  
+        #    'direction': ['mlp', 'lstm', 'xgb', 'rf'],
+        #    'ternary': ['mlp', 'lstm', 'xgb', 'rf']
+        #}
+        
         
         # Create results directory if it doesn't exist
         Path('results/model_training').mkdir(parents=True, exist_ok=True)

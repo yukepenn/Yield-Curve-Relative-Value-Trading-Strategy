@@ -6,6 +6,16 @@
 - Total PnL: -$4.4M with Sharpe ratio of -16.78
 - Win rate of only 21.6% across both strategies
 - Need to investigate and address performance issues
+- Fixed data shape issue in model training by flattening predictions and targets before saving to CSV
+- Successfully trained LSTM model for 2s10s spread with next_day prediction type
+- Achieved MSE of 1.83 on validation set
+- Improved model training with better probability handling and metric calculation
+- Successfully trained both MLP and LSTM models for direction prediction
+- MLP achieved accuracy of 0.543 and ROC-AUC of 0.537
+- LSTM achieved accuracy of 0.556 and ROC-AUC of 0.523
+- Successfully trained models for ternary classification with proper multi-class metrics
+- MLP achieved accuracy of 0.427 and macro-F1 of 0.355
+- LSTM achieved accuracy of 0.434 and macro-F1 of 0.319
 
 ## Completed Tasks
 - [x] Initial project setup
@@ -48,8 +58,16 @@
    - Implement market impact
    - Consider liquidity constraints
 
+5. Analyze model performance metrics
+- Compare results across different spreads and prediction types
+- Implement backtesting with trained models
+
 ## Current Status
 The project has completed initial development and testing phases. However, the latest backtest results show significant underperformance, with both strategies showing negative PnL and poor risk-adjusted returns. Immediate focus is needed on strategy improvement and risk management.
+
+- Model training pipeline is now working correctly
+- LSTM model successfully trained and saved
+- Results and predictions saved to appropriate directories
 
 ## Timeline
 - Week 1-2: Project setup and data collection
@@ -191,3 +209,11 @@ The project has completed initial development and testing phases. However, the l
   - Add comprehensive unit tests
   - Review memory usage patterns
   - Optimize data handling
+
+## May 1, 2024
+- ✅ Completed backtest visualization
+  - Generated equity curves plot
+  - Generated drawdown analysis plot
+  - Generated monthly returns heatmap
+  - Generated trade analysis plots
+  - Generated correlation analysis plot
