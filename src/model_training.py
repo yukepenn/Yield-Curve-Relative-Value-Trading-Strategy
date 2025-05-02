@@ -1600,22 +1600,22 @@ class ModelTrainer:
         logger = logging.getLogger("ModelTrainingBatch")
         
         # Define prediction types and their corresponding models
-        prediction_models = {
-            'ternary': ['xgb', 'rf'],
-        }
+        #prediction_models = {
+        #    'ternary': ['xgb', 'rf'],
+        #}
         
         # Define spreads to train
-        spreads = ['2s10s']
+        # spreads = ['2s10s']
         
         # Define spreads to train
-        #spreads = ['2s10s', '5s30s']
+        spreads = ['2s10s', '5s30s']
         
         # Define prediction types and their corresponding models
-        #prediction_models = {
-        #    'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],  
-        #    'direction': ['mlp', 'lstm', 'xgb', 'rf'],
-        #    'ternary': ['mlp', 'lstm', 'xgb', 'rf']
-        #}
+        prediction_models = {
+            'next_day': ['arima', 'mlp', 'lstm', 'xgb', 'rf', 'lasso', 'ridge'],  
+            'direction': ['mlp', 'lstm', 'xgb', 'rf'],
+            'ternary': ['mlp', 'lstm', 'xgb', 'rf']
+        }
         
         
         # Create results directory if it doesn't exist
