@@ -169,7 +169,7 @@ class DV01Calculator:
             self.config = yaml.safe_load(f)
         self.duration_calculator = DurationCalculator()
         self.dv01_target = self.config['dv01']['target']
-        self.dv01_ratios = self.config['dv01']['ratios']
+        self.dv01_ratios = self.config['dv01'].get('ratios', {})
     
     def calculate_dv01(self, position_size: float, yield_value: float, 
                       maturity: float, coupon_rate: float = 0.0) -> float:
@@ -189,28 +189,41 @@ class DV01Calculator:
             maturity, yield_value, coupon_rate)
         return position_size * modified_duration * 0.0001
     
-    def calculate_dv01_ratio(self, spread: str, short_maturity: float, long_maturity: float,
-                           short_yield: float, long_yield: float) -> float:
+    def calculate_dv01_ratio(self,
+                           spread: str,
+                           short_maturity: float,
+                           long_maturity: float,
+                           short_yield: float,
+                           long_yield: float) -> float:
         """
-        Calculate DV01 ratio between two bonds for spread trading.
+        Calculate DV01 ratio between two bonds. Uses static config ratio only if non-null.
         
         Args:
-            spread: Name of the spread (e.g., '2s10s')
-            short_maturity: Maturity of short bond in years
-            long_maturity: Maturity of long bond in years
-            short_yield: Yield of short bond
-            long_yield: Yield of long bond
+            spread: The spread name (e.g., '2s10s', '5s30s')
+            short_maturity: Maturity of the short leg in years
+            long_maturity: Maturity of the long leg in years
+            short_yield: Yield of the short leg
+            long_yield: Yield of the long leg
             
         Returns:
-            float: DV01 ratio (long/short)
-        """
-        # Use fixed ratio from config if available
-        if spread in self.dv01_ratios:
-            return self.dv01_ratios[spread]
+            float: The DV01 ratio
             
-        # Otherwise calculate dynamically
+        Raises:
+            ValueError: If short leg DV01 is zero
+        """
+        cfg = self.dv01_ratios.get(spread, None)
+        # Only use the config ratio if it's set to a positive number
+        if cfg is not None and isinstance(cfg, (int, float)):
+            return float(cfg)
+
+        # Otherwise, compute dynamically:
         short_dv01 = self.calculate_dv01(1.0, short_yield, short_maturity)
         long_dv01 = self.calculate_dv01(1.0, long_yield, long_maturity)
+        
+        # Avoid division by zero
+        if short_dv01 == 0:
+            raise ValueError(f"Short leg DV01 is zero for {spread}. Cannot compute ratio.")
+            
         return long_dv01 / short_dv01
 
 class RiskMetricsCalculator:
@@ -223,6 +236,9 @@ class RiskMetricsCalculator:
         self.dv01_calculator = DV01Calculator(config_path)
         self.risk_config = self.config['risk']
         self.portfolio_config = self.config['portfolio']
+        self.position_limits = self.risk_config['position_limits']
+        self.pnl_history = {spread: [] for spread in SPREADS.keys()}
+        self.correlation_window = 60  # Rolling window for correlation calculation
     
     def calculate_total_dv01(self, positions: Dict[str, Dict[str, Dict[str, float]]]) -> float:
         """Calculate total portfolio DV01."""
@@ -237,18 +253,73 @@ class RiskMetricsCalculator:
                     ))
         return total_dv01
     
-    def calculate_var(self, returns: pd.Series, confidence: float = None) -> float:
-        """Calculate Value at Risk."""
-        if confidence is None:
-            confidence = self.risk_config['var_confidence']
-        return -np.percentile(returns, (1 - confidence) * 100)
+    def check_concentration_limit(self, positions: Dict[str, Dict[str, Dict[str, float]]]) -> bool:
+        """Check if any spread exceeds the maximum concentration limit."""
+        total_dv01 = self.calculate_total_dv01(positions)
+        if total_dv01 == 0:
+            return True  # No positions, so no concentration issues
+
+        # Count how many spreads actually have a non-zero position
+        active_spreads = sum(
+            1 for pos in positions.values()
+            if abs(pos['short_term']['size']) + abs(pos['long_term']['size']) > 0
+        )
+
+        # Only enforce concentration when there are 2+ spreads on
+        if active_spreads < 2:
+            return True
+
+        # Now do the usual per-spread DV01 / total_DV01 check
+        max_conc = self.position_limits['max_concentration']
+        for spread, pos in positions.items():
+            spread_dv01 = sum(
+                abs(self.dv01_calculator.calculate_dv01(
+                    pos[leg]['size'],
+                    pos[leg]['yield'],
+                    self._get_maturity(spread, leg)
+                ))
+                for leg in ('short_term', 'long_term')
+            )
+            if spread_dv01 / total_dv01 > max_conc:
+                logging.warning(f"Concentration limit exceeded for {spread}: {spread_dv01/total_dv01:.2%}")
+                return False
+
+        return True
+    
+    def update_pnl_history(self, spread: str, pnl: float) -> None:
+        """Update PnL history for correlation calculation."""
+        self.pnl_history[spread].append(pnl)
+        if len(self.pnl_history[spread]) > self.correlation_window:
+            self.pnl_history[spread].pop(0)
+    
+    def check_correlation_limit(self) -> bool:
+        """Check if any spread pair exceeds the correlation threshold."""
+        # Need minimum data points for correlation
+        min_required = 20
+        spreads = list(self.pnl_history.keys())
+        
+        for i in range(len(spreads)):
+            for j in range(i + 1, len(spreads)):
+                spread1, spread2 = spreads[i], spreads[j]
+                if len(self.pnl_history[spread1]) >= min_required and len(self.pnl_history[spread2]) >= min_required:
+                    corr = np.corrcoef(
+                        self.pnl_history[spread1][-min_required:],
+                        self.pnl_history[spread2][-min_required:]
+                    )[0, 1]
+                    if abs(corr) > self.position_limits['correlation_threshold']:
+                        logging.warning(f"Correlation limit exceeded between {spread1} and {spread2}: {corr:.2f}")
+                        return False
+        return True
     
     def check_position_limits(self, positions: Dict[str, Dict[str, Dict[str, float]]]) -> bool:
         """Check if position limits are violated."""
+        # Check total DV01 limit
         total_dv01 = self.calculate_total_dv01(positions)
         if total_dv01 > self.config['position']['max_position']['total_portfolio']:
+            logging.warning(f"Total DV01 limit exceeded: {total_dv01}")
             return False
             
+        # Check per-spread DV01 limit
         for spread, position in positions.items():
             spread_dv01 = 0
             for leg in ['short_term', 'long_term']:
@@ -259,8 +330,17 @@ class RiskMetricsCalculator:
                         self._get_maturity(spread, leg)
                     ))
             if spread_dv01 > self.config['position']['max_position']['dv01_per_spread']:
+                logging.warning(f"Per-spread DV01 limit exceeded for {spread}: {spread_dv01}")
                 return False
-                
+        
+        # Check concentration limit
+        if not self.check_concentration_limit(positions):
+            return False
+            
+        # Check correlation limit
+        if not self.check_correlation_limit():
+            return False
+            
         return True
     
     def _get_maturity(self, spread: str, leg: str) -> float:
