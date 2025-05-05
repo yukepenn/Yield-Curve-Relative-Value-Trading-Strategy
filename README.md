@@ -1,14 +1,16 @@
 # Yield Curve Relative Value Trading Strategy
 
-A sophisticated systematic trading strategy focused on exploiting relative value opportunities in the yield curve through spread trading, utilizing machine learning models and ensuring DV01-neutral positions.
+A sophisticated systematic trading strategy focused on exploiting relative value opportunities in the yield curve through spread trading, utilizing machine learning models and ensuring DV01-neutral positions. This strategy demonstrates robust performance across multiple market from 2010 to 2019, Captures relative value opportunities in the yield curve (e.g., steepeners vs. flatteners)
 
 ## Backtest Performance (2010–2019)
 
-This strategy demonstrates robust performance across multiple market regimes from 2010 to 2019.
-It systematically captures relative value opportunities in the yield curve (e.g., steepeners vs. flatteners) while maintaining DV01-neutral exposure.
-
 ### Monthly Returns
 ![Monthly Returns](https://raw.githubusercontent.com/yukepenn/Yield-Curve-Relative-Value-Trading-Strategy/new-master/results/backtest/archive/monthly_returns.png)
+
+- 2s10s Strategy:
+    * Annualized Return: 19.54%
+    * Sharpe Ratio: 7.31
+    * Win Rate: 77.24%
 
 ### Trade Analysis
 ![Trade Analysis](https://raw.githubusercontent.com/yukepenn/Yield-Curve-Relative-Value-Trading-Strategy/new-master/results/backtest/archive/trade_analysis.png)
