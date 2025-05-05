@@ -1,36 +1,199 @@
 # Yield Curve Relative Value Trading Strategy
 
-This project implements a systematic trading strategy focused on exploiting relative value opportunities in the yield curve through spread trading, utilizing machine learning models and ensuring DV01-neutral positions.
+A sophisticated systematic trading strategy focused on exploiting relative value opportunities in the yield curve through spread trading, utilizing machine learning models and ensuring DV01-neutral positions.
 
 ## Project Structure
 
 ```
 ├── data/
 │   ├── raw/         # Original FRED data
-│   │   ├── treasury_yields.csv
-│   │   └── macro_indicators.csv
 │   ├── processed/   # Cleaned and processed data
-│   │   ├── features.csv
-│   │   ├── targets.csv
-│   │   ├── train_features.csv
-│   │   ├── train_targets.csv
-│   │   ├── val_features.csv
-│   │   ├── val_targets.csv
-│   │   ├── test_features.csv
-│   │   ├── test_targets.csv
-│   │   └── feature_stats.txt
 │   └── external/    # Additional data sources
-├── notebooks/       # Analysis notebooks
-│   └── 2_feature_analysis.ipynb
 ├── src/
-│   ├── data_ingestion.py    # FRED API integration
-│   └── feature_engineering.py # Feature generation
-├── results/
-│   ├── model_pickles/       # Saved models
-│   ├── plots/              # Generated plots
-│   ├── performance_reports/ # Backtest results
-│   └── logs/               # Log files
-└── tests/                  # Unit tests (to be implemented)
+│   ├── __init__.py
+│   ├── data_ingestion.py      # FRED API integration
+│   ├── feature_engineering.py # Feature generation
+│   ├── feature_analysis.py    # Feature analysis and selection
+│   ├── model_training.py      # Model training framework
+│   ├── backtest.py           # Backtesting system
+│   ├── portfolio.py          # Portfolio management
+│   ├── signal_generator.py   # Trading signal generation
+│   ├── utils.py             # Utility functions
+│   └── visualize_backtest.py # Performance visualization
+├── models/                   # Saved model files
+├── results/                  # Analysis results and logs
+├── config.yaml              # Configuration settings
+├── requirements.txt         # Project dependencies
+├── CHANGES.md              # Change log
+└── PROGRESS.md             # Project progress tracking
+```
+
+## Core Components
+
+### 1. Data Processing Pipeline
+- **Data Ingestion** (`data_ingestion.py`)
+  - FRED API integration for treasury yields
+  - Macro indicators data collection
+  - Automated data cleaning and alignment
+  - Missing value handling
+
+- **Feature Engineering** (`feature_engineering.py`)
+  - Calendar features (day of week, holidays)
+  - Trend features (momentum, RSI, moving averages)
+  - Yield curve features (PCA decomposition)
+  - Carry and roll-down features
+  - Macro indicators integration
+
+- **Feature Analysis** (`feature_analysis.py`)
+  - Feature importance analysis
+  - Correlation analysis
+  - Distribution analysis
+  - Feature-target relationships
+
+### 2. Model Training Framework (`model_training.py`)
+- **Supported Models**
+  - Traditional ML:
+    - Random Forest
+    - XGBoost
+    - Ridge Regression
+    - Lasso Regression
+  - Deep Learning:
+    - LSTM with configurable architecture
+    - Feed-Forward MLP
+  - Statistical:
+    - ARIMA with automatic parameter selection
+
+- **Training Features**
+  - Walk-forward validation
+  - Hyperparameter tuning
+  - GPU support
+  - Model persistence
+  - Comprehensive logging
+  - Early stopping
+  - Cross-validation
+
+### 3. Trading System
+- **Signal Generation** (`signal_generator.py`)
+  - Model prediction processing
+  - Signal thresholding
+  - Position sizing logic
+
+- **Portfolio Management** (`portfolio.py`)
+  - Position tracking
+  - Risk management
+  - Performance monitoring
+
+- **Backtesting** (`backtest.py`)
+  - Historical performance analysis
+  - Transaction cost modeling
+  - Risk metrics calculation
+
+- **Visualization** (`visualize_backtest.py`)
+  - Performance charts
+  - Risk metrics visualization
+  - Trade analysis plots
+
+## Technical Implementation
+
+### Feature Engineering
+```python
+# Example from feature_engineering.py
+def _compute_trend_features(self, col: str) -> pd.DataFrame:
+    features = pd.DataFrame(index=series.index)
+    for lookback in LOOKBACK_PERIODS:
+        # Level change
+        features[f'{col}_change_{lookback}d'] = series - series.shift(lookback)
+        # Percentage change
+        features[f'{col}_pct_change_{lookback}d'] = series.pct_change(lookback)
+        # Moving average
+        features[f'{col}_ma_{lookback}d'] = series.rolling(lookback).mean()
+        # Volatility
+        features[f'{col}_vol_{lookback}d'] = series.rolling(lookback).std()
+```
+
+### Model Training
+```python
+# Example from model_training.py
+class ModelTrainer:
+    def __init__(self, spread: str, prediction_type: str, model_type: str):
+        self.spread = spread
+        self.prediction_type = prediction_type
+        self.model_type = model_type
+        self.hyperparameters = self.set_default_hyperparameters()
+
+    def train(self):
+        if self.model_type == 'lstm':
+            return self.train_lstm()
+        elif self.model_type == 'mlp':
+            return self.train_mlp()
+        elif self.model_type == 'arima':
+            return self.train_arima()
+```
+
+## Setup and Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/yield-curve-trading.git
+cd yield-curve-trading
+```
+
+2. Create and activate virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure settings:
+- Copy `config.yaml.example` to `config.yaml`
+- Update configuration parameters
+- Set up FRED API key in environment variables
+
+## Usage
+
+1. Data Processing:
+```bash
+# Data ingestion
+python src/data_ingestion.py
+
+# Feature engineering
+python src/feature_engineering.py
+
+# Feature analysis
+python src/feature_analysis.py
+```
+
+2. Model Training:
+```python
+from src.model_training import ModelTrainer
+
+# Initialize trainer
+trainer = ModelTrainer(
+    spread='2s10s',
+    prediction_type='next_day',
+    model_type='mlp'
+)
+
+# Train model
+results = trainer.train()
+```
+
+3. Backtesting:
+```python
+from src.backtest import Backtest
+
+backtest = Backtest(
+    model_path='models/model.pkl',
+    start_date='2020-01-01',
+    end_date='2021-12-31'
+)
+
+results = backtest.run()
 ```
 
 ## Project Rules
@@ -58,144 +221,20 @@ Format: "Type(component): description"
 - Proper error handling
 - Reproducibility with random seeds
 
-### 4. Data Processing
-- All numeric values rounded to 4 decimal places
-- Proper handling of missing values
-- Clear separation of raw and processed data
-- Time-based data splitting
-
-## Current Status
-
-### Completed
-1. Data Ingestion
-   - FRED API integration
-   - Treasury yields (3M to 30Y)
-   - Macro indicators
-   - Data cleaning and alignment
-
-2. Feature Engineering
-   - 166 features generated
-   - 15 targets (regression and classification)
-   - Calendar features
-   - Trend features
-   - Yield curve features
-   - Carry features
-   - Data splits (40% train, 20% val, 40% test)
-
-### Next Steps
-1. Feature Analysis
-   - Feature importance
-   - Correlation analysis
-   - Distribution analysis
-   - Feature-target relationships
-
-2. Model Development
-   - Model architecture design
-   - Cross-validation implementation
-   - Performance metrics
-
-3. Backtesting System
-   - Position sizing logic
-   - Transaction cost modeling
-   - Risk management rules
-
-## Recent Updates
-
-### Model Training Framework
-- Implemented comprehensive model training framework supporting multiple model types:
-  - Traditional ML: Random Forest, XGBoost, Ridge, Lasso
-  - Deep Learning: LSTM, Feed-Forward MLP
-  - Statistical: ARIMA
-- Added unified training interface through `ModelTrainer` class
-- Implemented walk-forward validation for all models
-- Added proper error handling and logging
-- Integrated GPU support for deep learning models
-
-### Model Types and Features
-- Feed-Forward MLP:
-  - Flexible architecture with configurable hidden layers [512, 256, 128]
-  - BatchNormalization and Dropout for regularization
-  - Early stopping and model persistence
-  - Support for regression and classification tasks
-- LSTM Model:
-  - Sequence modeling capabilities
-  - Configurable hidden layers and sequence length
-- ARIMA Model:
-  - Statistical time series modeling
-  - Automatic parameter selection
-
-### Testing Framework
-- Comprehensive testing suite in `test_all_models.py`:
-  - Tests all combinations of spreads and prediction types
-  - Supports all model architectures
-  - Saves detailed results and metrics
-- Individual model testing in `test_model_training.py`:
-  - Quick testing of specific model configurations
-  - Detailed feature importance analysis
-  - Performance metrics logging
-
-### Results and Analysis
-- All results saved in structured format:
-  - Model pickles in `results/model_pickles/`
-  - Training results in `results/model_training/`
-  - Detailed logs in `results/logs/`
-- Performance metrics tracked:
-  - MSE for regression tasks
-  - Accuracy, F1-score for classification
-  - Feature importance analysis
-  - Training/validation loss curves
-
-## Setup
-
-1. Clone the repository
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Set up .env file with FRED API key
-
-## Usage
-
-1. Data Ingestion:
-   ```bash
-   python src/data_ingestion.py
-   ```
-
-2. Feature Engineering:
-   ```bash
-   python src/feature_engineering.py
-   ```
-
-3. Feature Analysis:
-   Run notebooks/2_feature_analysis.ipynb
-
-4. Model Training:
-   ```python
-   # Initialize trainer
-   trainer = ModelTrainer(
-       spread='2s10s',
-       prediction_type='next_day',
-       model_type='mlp'  # or 'lstm', 'rf', 'xgb', 'arima'
-   )
-
-   # Train model
-   results = trainer.train()
-
-   # Results include metrics and predictions
-   print(f"MSE: {results['mse']}")
-   print(f"Training Loss: {results['train_loss']}")
-   print(f"Validation Loss: {results['val_loss']}")
-   ```
-
 ## Contributing
 
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Feat(component): add amazing feature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- FRED API for data access
+- Contributors and maintainers
+- Open source community
