@@ -37,6 +37,7 @@ ENV/
 # IDE
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 
@@ -48,6 +49,10 @@ results/plots/*
 results/performance_reports/*
 results/logs/*
 results/model_training/*
+
+# Documentation
+CHANGES.md
+PROGRESS.md
 
 # Keep .gitkeep files
 !data/raw/.gitkeep
