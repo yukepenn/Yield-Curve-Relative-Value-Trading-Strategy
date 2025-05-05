@@ -624,11 +624,11 @@ class ModelTrainer:
             target = targets.loc[common_index, target_col]
             
             # ——— only keep the last 6 years of history ———
-            last_date = features.index.max()
-            cutoff    = last_date - relativedelta(years=6)
-            features  = features.loc[cutoff:]
-            target    = target.loc[cutoff:]
-            self.logger.info(f"Trimmed to last 6 years: {features.index.min()} → {features.index.max()}")
+            #last_date = features.index.max()
+            #cutoff    = last_date - relativedelta(years=6)
+            #features  = features.loc[cutoff:]
+            #target    = target.loc[cutoff:]
+            #self.logger.info(f"Trimmed to last 6 years: {features.index.min()} → {features.index.max()}")
             
             # For classification tasks, remap target values and update output_size accordingly
             if self.prediction_type in ['direction', 'ternary']:
