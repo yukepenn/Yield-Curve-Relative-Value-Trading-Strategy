@@ -590,3 +590,9 @@ The project has completed initial development and testing phases. However, the l
 - All models (ARIMA, LASSO, LSTM, MLP, RF, Ridge, XGB) contributing to signal generation
 - Strong bias towards flattener signals in both spreads
 - Need to investigate model agreement and confidence levels
+
+## Backtest Visualization (2024-03-21)
+- Generated comprehensive visualization of backtest results
+- Created equity curves, drawdown analysis, and monthly returns heatmap
+- Analyzed trade performance and strategy correlations
+- Exported detailed timeline data to Excel for further analysis
